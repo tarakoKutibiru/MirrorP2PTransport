@@ -1,6 +1,9 @@
 # Created by https://www.gitignore.io/api/unity
 # Edit at https://www.gitignore.io/?templates=unity
 
+# Mac
+*.DS_Store
+
 # Jetbrain Rider Cache
 .idea/
 Assets/Plugins/Editor/JetBrains*
