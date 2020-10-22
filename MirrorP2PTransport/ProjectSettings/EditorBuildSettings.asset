@@ -4,5 +4,8 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/MirrorP2PTransport/Test/SignalingTest/Scenes/Scene.unity
+    guid: d3c8bdbac97ea4705983ecf1ddb04d37
   m_configObjects: {}
