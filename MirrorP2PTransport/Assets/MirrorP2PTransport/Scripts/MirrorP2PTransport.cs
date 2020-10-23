@@ -1,21 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Net;
-using System.Security.Authentication;
-using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Mirror.WebRTC
 {
     public class MirrorP2PTransport : Transport
     {
-        void OnValidate()
-        {
+        public string signalingURL = null;
+        public string signalingKey = null;
+        public string roomId = null;
 
-        }
-
-        MirrorP2PClient client;
-        MirrorP2PServer server;
+        MirrorP2PClient client = new MirrorP2PClient();
+        MirrorP2PServer server = new MirrorP2PServer();
 
         public override bool Available()
         {
@@ -23,56 +18,69 @@ namespace Mirror.WebRTC
         }
         public override int GetMaxPacketSize(int channelId = 0)
         {
-            return 0;
+            return 16 * 1024;
         }
 
         void Awake()
         {
+            Unity.WebRTC.WebRTC.Initialize(Unity.WebRTC.EncoderType.Software);
+        }
 
+        private void Start()
+        {
+            StartCoroutine(Unity.WebRTC.WebRTC.Update());
+        }
+
+        private void OnDestroy()
+        {
+            Unity.WebRTC.WebRTC.Dispose();
         }
 
         public override void Shutdown()
         {
-
+            this.client.Disconnect();
+            this.server.Stop();
         }
 
         #region Client
 
         public override bool ClientConnected()
         {
-            return false;
+            return this.client.Connected();
         }
 
         public override void ClientConnect(string hostname)
         {
-
+            this.client.Connect(this.signalingURL, this.signalingKey, this.roomId);
         }
 
         public override void ClientDisconnect()
         {
-
+            this.client.Disconnect();
         }
 
         public override bool ClientSend(int channelId, ArraySegment<byte> segment)
         {
-            return false;
+            byte[] data = new byte[segment.Count];
+            Array.Copy(segment.Array, segment.Offset, data, 0, segment.Count);
+            return this.client.Send(data);
         }
         #endregion
 
         #region Server
         public override bool ServerActive()
         {
-            return false;
+            return this.server.IsAlive();
         }
 
         public override void ServerStart()
         {
-
+            this.server.Start(this.signalingURL, this.signalingKey, this.roomId);
         }
 
         public override void ServerStop()
         {
-
+            this.server.Stop();
         }
 
         public override bool ServerDisconnect(int connectionId)
