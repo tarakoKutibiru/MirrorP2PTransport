@@ -198,7 +198,7 @@ namespace Mirror.WebRTC
 
         protected void OnMessage(string message)
         {
-            Debug.LogFormat("OnMessage {0}", text);
+            Debug.LogFormat("OnMessage {0}", message);
         }
 
         protected bool SendMessage(byte[] bytes)
@@ -213,7 +213,6 @@ namespace Mirror.WebRTC
 
         RTCDataChannel GetDataChannel(string label)
         {
-
             foreach (var dictionary in m_mapPeerAndChannelDictionary.Values)
             {
                 foreach (RTCDataChannel dataChannel in dictionary.Values)
