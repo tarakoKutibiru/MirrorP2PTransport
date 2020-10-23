@@ -16,9 +16,9 @@
             base.Stop();
         }
 
-        public void Send(int connectionId, byte[] data)
+        public bool Send(int connectionId, byte[] data)
         {
-            base.SendMessage(data);
+            return base.SendMessage(data);
         }
 
         public bool Disconnect(int connectionId)
@@ -28,7 +28,7 @@
 
         public bool IsAlive()
         {
-            return false;
+            return base.IsConnected();
         }
     }
 }

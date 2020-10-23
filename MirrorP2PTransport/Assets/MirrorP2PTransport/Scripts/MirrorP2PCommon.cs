@@ -208,6 +208,16 @@ namespace Mirror.WebRTC
 
             dataChannel.Send(bytes);
 
+            Debug.Log("Send Message");
+
+            return true;
+        }
+
+        protected bool IsConnected()
+        {
+            RTCDataChannel dataChannel = this.GetDataChannel("dataChannel");
+            if (dataChannel == null) return false;
+
             return true;
         }
 

@@ -85,12 +85,24 @@ namespace Mirror.WebRTC
 
         public override bool ServerDisconnect(int connectionId)
         {
-            return false;
+            return this.server.Disconnect(connectionId);
         }
 
         public override bool ServerSend(List<int> connectionIds, int channelId, ArraySegment<byte> segment)
         {
-            return false;
+            // telepathy doesn't support allocation-free sends yet.
+            // previously we allocated in Mirror. now we do it here.
+            byte[] data = new byte[segment.Count];
+            Array.Copy(segment.Array, segment.Offset, data, 0, segment.Count);
+
+            // send to all
+            bool result = true;
+            foreach (int connectionId in connectionIds)
+            {
+                result &= server.Send(connectionId, data);
+            }
+
+            return result;
         }
 
         public override string ServerGetClientAddress(int connectionId)

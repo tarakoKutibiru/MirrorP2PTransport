@@ -23,7 +23,7 @@
 
         public bool Connected()
         {
-            return false;
+            return base.IsConnected();
         }
     }
 }
