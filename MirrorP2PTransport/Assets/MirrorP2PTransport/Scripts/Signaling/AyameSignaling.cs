@@ -55,9 +55,14 @@ public class AyameSignaling : ISignaling
     public event OnIceCandidateHandler OnIceCandidate;
 
 
-    public void SendOffer()
+    public void SendOffer(string connectionId, RTCSessionDescription offer)
     {
-        throw new NotImplementedException();
+        Debug.Log("Signaling: SendOffer");
+
+        OfferMessage offerMessage = new OfferMessage();
+        offerMessage.sdp = offer.sdp;
+
+        this.WSSend(JsonUtility.ToJson(offerMessage));
     }
 
     public void SendAnswer(string connectionId, RTCSessionDescription answer)

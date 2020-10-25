@@ -71,7 +71,47 @@ namespace Mirror.WebRTC
             // wait Offer
             if (!shouldSendOffer) return;
 
-            // TODO: Send Offer
+            // send Offer
+            var pc = new RTCPeerConnection();
+            m_mapConnectionIdAndPeer.Add(acceptMessage.connectionId, pc);
+
+            // create data chennel
+            RTCDataChannelInit dataChannelOptions = new RTCDataChannelInit(true);
+            RTCDataChannel dataChannel = pc.CreateDataChannel("dataChannel", ref dataChannelOptions);
+            dataChannel.OnMessage = bytes => OnMessage(dataChannel, bytes);
+            dataChannel.OnClose = () => OnCloseChannel(dataChannel);
+            var channels = new DataChannelDictionary();
+            channels.Add(dataChannel.Id, dataChannel);
+            this.m_mapPeerAndChannelDictionary.Add(pc, channels);
+
+            pc.OnDataChannel = new DelegateOnDataChannel(channel => { OnDataChannel(pc, channel); });
+            pc.SetConfiguration(ref m_conf);
+            pc.OnIceCandidate = new DelegateOnIceCandidate(candidate =>
+            {
+                ayameSignaling.SendCandidate(acceptMessage.connectionId, candidate);
+            });
+
+            pc.OnIceConnectionChange = new DelegateOnIceConnectionChange(state =>
+            {
+                if (state == RTCIceConnectionState.Disconnected)
+                {
+                    pc.Close();
+                    m_mapConnectionIdAndPeer.Remove(acceptMessage.connectionId);
+                }
+            });
+
+            RTCOfferOptions options = new RTCOfferOptions();
+            var opLocalDesc = pc.CreateOffer(ref options);
+            while (opLocalDesc.MoveNext())
+            {
+            }
+            if (opLocalDesc.IsError)
+            {
+                Debug.LogError($"Network Error: {opLocalDesc.Error}");
+                return;
+            }
+
+            ayameSignaling.SendOffer(acceptMessage.connectionId, opLocalDesc.Desc);
         }
 
         void OnOffer(ISignaling signaling, DescData e)
@@ -133,7 +173,14 @@ namespace Mirror.WebRTC
 
         void OnAnswer(ISignaling signaling, DescData e)
         {
-            // TODO: Answer sdp SetRemoteDescription 
+            Debug.Log("OnAnswer");
+
+            RTCSessionDescription desc = new RTCSessionDescription();
+            desc.type = RTCSdpType.Answer;
+            desc.sdp = e.sdp;
+
+            RTCPeerConnection pc = this.m_mapConnectionIdAndPeer[e.connectionId];
+            pc.SetRemoteDescription(ref desc);
         }
 
         void OnIceCandidate(ISignaling signaling, CandidateData e)
@@ -142,6 +189,8 @@ namespace Mirror.WebRTC
             {
                 return;
             }
+
+            Debug.Log("OnIceCandidate");
 
             RTCIceCandidate​ _candidate = default;
             _candidate.candidate = e.candidate;
