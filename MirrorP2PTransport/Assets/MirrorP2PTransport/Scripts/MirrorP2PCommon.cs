@@ -72,13 +72,14 @@ namespace Mirror.WebRTC
             if (!shouldSendOffer) return;
 
             // send Offer
-            var pc = new RTCPeerConnection();
+            var pc = new RTCPeerConnection(ref configuration);
             m_mapConnectionIdAndPeer.Add(acceptMessage.connectionId, pc);
 
             // create data chennel
             RTCDataChannelInit dataChannelOptions = new RTCDataChannelInit(true);
             RTCDataChannel dataChannel = pc.CreateDataChannel("dataChannel", ref dataChannelOptions);
             dataChannel.OnMessage = bytes => OnMessage(dataChannel, bytes);
+            dataChannel.OnOpen = () => OnOpenChannel(dataChannel);
             dataChannel.OnClose = () => OnCloseChannel(dataChannel);
             var channels = new DataChannelDictionary();
             channels.Add(dataChannel.Id, dataChannel);
@@ -88,11 +89,15 @@ namespace Mirror.WebRTC
             pc.SetConfiguration(ref m_conf);
             pc.OnIceCandidate = new DelegateOnIceCandidate(candidate =>
             {
+                Debug.Log("PC OnIceCandidate");
+
                 ayameSignaling.SendCandidate(acceptMessage.connectionId, candidate);
             });
 
             pc.OnIceConnectionChange = new DelegateOnIceConnectionChange(state =>
             {
+                Debug.LogFormat("OnIceConnectionChange {0}", state);
+
                 if (state == RTCIceConnectionState.Disconnected)
                 {
                     pc.Close();
@@ -101,6 +106,10 @@ namespace Mirror.WebRTC
             });
 
             RTCOfferOptions options = new RTCOfferOptions();
+            options.iceRestart = false;
+            options.offerToReceiveAudio = false;
+            options.offerToReceiveVideo = false;
+
             var opLocalDesc = pc.CreateOffer(ref options);
             while (opLocalDesc.MoveNext())
             {
@@ -111,7 +120,10 @@ namespace Mirror.WebRTC
                 return;
             }
 
-            ayameSignaling.SendOffer(acceptMessage.connectionId, opLocalDesc.Desc);
+            var desc = opLocalDesc.Desc;
+            pc.SetLocalDescription(ref desc);
+
+            ayameSignaling.SendOffer(acceptMessage.connectionId, pc.LocalDescription);
         }
 
         void OnOffer(ISignaling signaling, DescData e)
@@ -127,11 +139,21 @@ namespace Mirror.WebRTC
             var pc = new RTCPeerConnection();
             m_mapConnectionIdAndPeer.Add(e.connectionId, pc);
 
-            pc.OnDataChannel = new DelegateOnDataChannel(channel => { OnDataChannel(pc, channel); });
+            // create data chennel
+            /*            RTCDataChannelInit dataChannelOptions = new RTCDataChannelInit(true);
+                        RTCDataChannel dataChannel = pc.CreateDataChannel("dataChannel", ref dataChannelOptions);
+                        dataChannel.OnMessage = bytes => OnMessage(dataChannel, bytes);
+                        dataChannel.OnOpen = () => OnOpenChannel(dataChannel);
+                        dataChannel.OnClose = () => OnCloseChannel(dataChannel);
+                        var channels = new DataChannelDictionary();
+                        channels.Add(dataChannel.Id, dataChannel);
+                        this.m_mapPeerAndChannelDictionary.Add(pc, channels);*/
 
+            pc.OnDataChannel = new DelegateOnDataChannel(channel => { OnDataChannel(pc, channel); });
             pc.SetConfiguration(ref m_conf);
             pc.OnIceCandidate = new DelegateOnIceCandidate(candidate =>
             {
+                Debug.Log("PC OnIceCandidate");
                 signaling.SendCandidate(e.connectionId, candidate);
             });
 
@@ -198,6 +220,8 @@ namespace Mirror.WebRTC
             _candidate.sdpMid = e.sdpMid;
 
             pc.AddIceCandidate(ref _candidate);
+
+            //  this.m_signaling.SendCandidate(e.connectionId, _candidate);
         }
 
         void OnDataChannel(RTCPeerConnection pc, RTCDataChannel channel)
@@ -214,13 +238,20 @@ namespace Mirror.WebRTC
                             return;
                         }*/
 
+            Debug.Log("OnDataChannel");
+
             channel.OnMessage = bytes => OnMessage(channel, bytes);
             channel.OnClose = () => OnCloseChannel(channel);
         }
 
+        void OnOpenChannel(RTCDataChannel channel)
+        {
+            Debug.Log("OnOpenChannel");
+        }
+
         void OnCloseChannel(RTCDataChannel channel)
         {
-
+            Debug.Log("OnCloneChannel");
         }
 
         protected void OnMessage(RTCDataChannel channel, byte[] bytes)
@@ -248,6 +279,12 @@ namespace Mirror.WebRTC
         protected void OnMessage(string message)
         {
             Debug.LogFormat("OnMessage {0}", message);
+        }
+
+        public void SendMessage(string message)
+        {
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(message);
+            this.SendMessage(bytes);
         }
 
         protected bool SendMessage(byte[] bytes)
