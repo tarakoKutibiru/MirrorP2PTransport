@@ -12,7 +12,10 @@ namespace Mirror.WebRTC.Test.SendMessage
         {
             if (this.inputField == null) return;
 
-            this.mirrorP2PTransport.DebugSend(this.inputField.text);
+            Message message = new Message();
+            message.message = this.inputField.text;
+
+            NetworkClient.Send<Message>(message);
         }
     }
 }

@@ -207,8 +207,6 @@ namespace Mirror.WebRTC
             _candidate.sdpMid = e.sdpMid;
 
             pc.AddIceCandidate(ref _candidate);
-
-            //  this.m_signaling.SendCandidate(e.connectionId, _candidate);
         }
 
         /// <summary>
