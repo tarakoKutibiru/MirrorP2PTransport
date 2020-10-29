@@ -81,9 +81,6 @@ namespace Mirror.WebRTC
             dataChannel.OnMessage = bytes => OnMessage(dataChannel, bytes);
             dataChannel.OnOpen = () => OnOpenChannel(dataChannel);
             dataChannel.OnClose = () => OnCloseChannel(dataChannel);
-            var channels = new DataChannelDictionary();
-            channels.Add(dataChannel.Id, dataChannel);
-            this.m_mapPeerAndChannelDictionary.Add(pc, channels);
 
             pc.OnDataChannel = new DelegateOnDataChannel(channel => { OnDataChannel(pc, channel); });
             pc.SetConfiguration(ref m_conf);
@@ -138,16 +135,6 @@ namespace Mirror.WebRTC
             }
             var pc = new RTCPeerConnection();
             m_mapConnectionIdAndPeer.Add(e.connectionId, pc);
-
-            // create data chennel
-            /*            RTCDataChannelInit dataChannelOptions = new RTCDataChannelInit(true);
-                        RTCDataChannel dataChannel = pc.CreateDataChannel("dataChannel", ref dataChannelOptions);
-                        dataChannel.OnMessage = bytes => OnMessage(dataChannel, bytes);
-                        dataChannel.OnOpen = () => OnOpenChannel(dataChannel);
-                        dataChannel.OnClose = () => OnCloseChannel(dataChannel);
-                        var channels = new DataChannelDictionary();
-                        channels.Add(dataChannel.Id, dataChannel);
-                        this.m_mapPeerAndChannelDictionary.Add(pc, channels);*/
 
             pc.OnDataChannel = new DelegateOnDataChannel(channel => { OnDataChannel(pc, channel); });
             pc.SetConfiguration(ref m_conf);
@@ -224,6 +211,11 @@ namespace Mirror.WebRTC
             //  this.m_signaling.SendCandidate(e.connectionId, _candidate);
         }
 
+        /// <summary>
+        /// 他方のピアで作成されたDataChannelが接続されたときに呼ばれる。
+        /// </summary>
+        /// <param name="pc"></param>
+        /// <param name="channel"></param>
         void OnDataChannel(RTCPeerConnection pc, RTCDataChannel channel)
         {
             if (!m_mapPeerAndChannelDictionary.TryGetValue(pc, out var channels))
@@ -233,47 +225,44 @@ namespace Mirror.WebRTC
             }
             channels.Add(channel.Id, channel);
 
-            /*            if (channel.Label != "dataChannel")
-                        {
-                            return;
-                        }*/
-
             Debug.Log("OnDataChannel");
 
             channel.OnMessage = bytes => OnMessage(channel, bytes);
             channel.OnClose = () => OnCloseChannel(channel);
         }
 
+        /// <summary>
+        /// 自分のピアで作成したDataChannelの接続が確立されたときに呼ばれる。
+        /// </summary>
+        /// <param name="channel"></param>
         void OnOpenChannel(RTCDataChannel channel)
         {
-            Debug.Log("OnOpenChannel");
+            var pc = this.m_mapConnectionIdAndPeer[channel.Label];
+
+            if (!m_mapPeerAndChannelDictionary.TryGetValue(pc, out var channels))
+            {
+                channels = new DataChannelDictionary();
+                m_mapPeerAndChannelDictionary.Add(pc, channels);
+            }
+            channels.Add(channel.Id, channel);
+
+            channel.OnMessage = bytes => OnMessage(channel, bytes);
+            channel.OnClose = () => OnCloseChannel(channel);
         }
 
+        /// <summary>
+        /// 自分のピアで作成したDataChannelの接続が切れたとき
+        /// </summary>
+        /// <param name="channel"></param>
         void OnCloseChannel(RTCDataChannel channel)
         {
-            Debug.Log("OnCloneChannel");
+            Debug.Log("OnCloseChannel");
         }
 
         protected void OnMessage(RTCDataChannel channel, byte[] bytes)
         {
             string text = System.Text.Encoding.UTF8.GetString(bytes);
             this.OnMessage(text);
-
-            /*            //ASCII エンコード
-                        text = System.Text.Encoding.ASCII.GetString(bytes);
-                        Debug.LogFormat("OnMessage {0}", text);
-
-                        //データがShift-JISの場合
-                        text = System.Text.Encoding.GetEncoding("shift_jis").GetString(bytes);
-                        Debug.LogFormat("OnMessage {0}", text);
-
-                        //データがEUCの場合
-                        text = System.Text.Encoding.GetEncoding("euc-jp").GetString(bytes);
-                        Debug.LogFormat("OnMessage {0}", text);
-
-                        //データがunicodeの場合
-                        text = System.Text.Encoding.Unicode.GetString(bytes);
-                        Debug.LogFormat("OnMessage {0}", text);*/
         }
 
         protected void OnMessage(string message)
@@ -283,14 +272,30 @@ namespace Mirror.WebRTC
 
         public void SendMessage(string message)
         {
-            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(message);
-            this.SendMessage(bytes);
+            RTCDataChannel dataChannel = this.GetDataChannel("dataChannel");
+            if (dataChannel == null) return;
+
+            if (dataChannel.ReadyState != RTCDataChannelState.Open)
+            {
+                Debug.LogError("Not Open.");
+                return;
+            }
+
+            dataChannel.Send(message);
+
+            Debug.Log("Send Message");
         }
 
         protected bool SendMessage(byte[] bytes)
         {
             RTCDataChannel dataChannel = this.GetDataChannel("dataChannel");
             if (dataChannel == null) return false;
+
+            if (dataChannel.ReadyState != RTCDataChannelState.Open)
+            {
+                Debug.LogError("Not Open.");
+                return false;
+            }
 
             dataChannel.Send(bytes);
 
@@ -303,8 +308,7 @@ namespace Mirror.WebRTC
         {
             RTCDataChannel dataChannel = this.GetDataChannel("dataChannel");
             if (dataChannel == null) return false;
-
-            return true;
+            return dataChannel.ReadyState == RTCDataChannelState.Open;
         }
 
         RTCDataChannel GetDataChannel(string label)
