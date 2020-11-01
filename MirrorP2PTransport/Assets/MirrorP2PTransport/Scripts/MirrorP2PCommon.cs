@@ -32,6 +32,7 @@ namespace Mirror.WebRTC
         private readonly Dictionary<RTCPeerConnection, DataChannelDictionary> m_mapPeerAndChannelDictionary = new Dictionary<RTCPeerConnection, DataChannelDictionary>();
         private RTCConfiguration m_conf;
 
+
         public void Start()
         {
             m_conf = default;
@@ -49,7 +50,7 @@ namespace Mirror.WebRTC
             this.m_signaling.Start();
         }
 
-        public void Stop()
+        public virtual void Stop()
         {
             if (this.m_signaling != null)
             {
@@ -79,8 +80,8 @@ namespace Mirror.WebRTC
             RTCDataChannelInit dataChannelOptions = new RTCDataChannelInit(true);
             RTCDataChannel dataChannel = pc.CreateDataChannel("dataChannel", ref dataChannelOptions);
             dataChannel.OnMessage = bytes => OnMessage(dataChannel, bytes);
-            dataChannel.OnOpen = () => OnOpenChannel(dataChannel);
-            dataChannel.OnClose = () => OnCloseChannel(dataChannel);
+            dataChannel.OnOpen = () => OnOpenChannel(acceptMessage.connectionId, dataChannel);
+            dataChannel.OnClose = () => OnCloseChannel(acceptMessage.connectionId, dataChannel);
 
             pc.OnDataChannel = new DelegateOnDataChannel(channel => { OnDataChannel(pc, channel); });
             pc.SetConfiguration(ref m_conf);
@@ -99,6 +100,8 @@ namespace Mirror.WebRTC
                 {
                     pc.Close();
                     m_mapConnectionIdAndPeer.Remove(acceptMessage.connectionId);
+
+                    this.OnDisconnected();
                 }
             });
 
@@ -226,16 +229,20 @@ namespace Mirror.WebRTC
             Debug.Log("OnDataChannel");
 
             channel.OnMessage = bytes => OnMessage(channel, bytes);
-            channel.OnClose = () => OnCloseChannel(channel);
+            channel.OnClose = () => OnCloseChannel(this.m_signaling.m_acceptMessage.connectionId, channel);
+
+            this.OnConnected();
         }
 
         /// <summary>
         /// 自分のピアで作成したDataChannelの接続が確立されたときに呼ばれる。
         /// </summary>
         /// <param name="channel"></param>
-        void OnOpenChannel(RTCDataChannel channel)
+        void OnOpenChannel(string connectionId, RTCDataChannel channel)
         {
-            var pc = this.m_mapConnectionIdAndPeer[channel.Label];
+            Debug.Log(channel.Label);
+
+            var pc = this.m_mapConnectionIdAndPeer[connectionId];
 
             if (!m_mapPeerAndChannelDictionary.TryGetValue(pc, out var channels))
             {
@@ -245,25 +252,29 @@ namespace Mirror.WebRTC
             channels.Add(channel.Id, channel);
 
             channel.OnMessage = bytes => OnMessage(channel, bytes);
-            channel.OnClose = () => OnCloseChannel(channel);
+            channel.OnClose = () => OnCloseChannel(connectionId, channel);
+
+            this.OnConnected();
         }
 
         /// <summary>
         /// 自分のピアで作成したDataChannelの接続が切れたとき
         /// </summary>
         /// <param name="channel"></param>
-        void OnCloseChannel(RTCDataChannel channel)
+        void OnCloseChannel(string connectionId, RTCDataChannel channel)
         {
             Debug.Log("OnCloseChannel");
+
+            this.OnDisconnected();
         }
 
-        protected void OnMessage(RTCDataChannel channel, byte[] bytes)
+        protected virtual void OnMessage(RTCDataChannel channel, byte[] bytes)
         {
             string text = System.Text.Encoding.UTF8.GetString(bytes);
             this.OnMessage(text);
         }
 
-        protected void OnMessage(string message)
+        protected virtual void OnMessage(string message)
         {
             Debug.LogFormat("OnMessage {0}", message);
         }
@@ -300,6 +311,16 @@ namespace Mirror.WebRTC
             Debug.Log("Send Message");
 
             return true;
+        }
+
+        protected virtual void OnConnected()
+        {
+
+        }
+
+        protected virtual void OnDisconnected()
+        {
+
         }
 
         protected bool IsConnected()

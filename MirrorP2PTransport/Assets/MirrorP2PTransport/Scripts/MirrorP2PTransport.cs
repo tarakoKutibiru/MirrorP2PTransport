@@ -9,8 +9,8 @@ namespace Mirror.WebRTC
         public string signalingKey = null;
         public string roomId = null;
 
-        MirrorP2PClient client = new MirrorP2PClient();
-        MirrorP2PServer server = new MirrorP2PServer();
+        MirrorP2PClient client = null;
+        MirrorP2PServer server = null;
 
         public override bool Available()
         {
@@ -23,6 +23,17 @@ namespace Mirror.WebRTC
 
         void Awake()
         {
+            this.client = new MirrorP2PClient();
+            this.server = new MirrorP2PServer();
+
+            this.client.OnReceivedDataAction += (data, channelId) => { this.OnClientDataReceived?.Invoke(new ArraySegment<byte>(data), channelId); };
+            this.client.OnConnectedAction += () => { this.OnClientConnected?.Invoke(); };
+            this.client.OnDisconnectedAction += () => { this.OnClientDisconnected?.Invoke(); };
+
+            this.server.OnReceivedDataAction += (connectionId, data, channelId) => { this.OnServerDataReceived?.Invoke(connectionId, new ArraySegment<byte>(data), channelId); };
+            this.server.OnConnectedAction += (connectionid) => { this.OnServerConnected?.Invoke(connectionid); };
+            this.server.OnDisconnectedAction += (connectionid) => { this.OnServerDisconnected?.Invoke(connectionid); };
+
             Unity.WebRTC.WebRTC.Initialize(Unity.WebRTC.EncoderType.Software);
         }
 
@@ -65,6 +76,7 @@ namespace Mirror.WebRTC
             Array.Copy(segment.Array, segment.Offset, data, 0, segment.Count);
             return this.client.Send(data);
         }
+
         #endregion
 
         #region Server
