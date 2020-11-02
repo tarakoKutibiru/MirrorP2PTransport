@@ -56,6 +56,10 @@ namespace Mirror.WebRTC
             {
                 this.m_signaling.Stop();
                 this.m_signaling = null;
+
+                this.m_mapConnectionIdAndPeer.Clear();
+                this.m_mapPeerAndChannelDictionary.Clear();
+                this.m_conf = default;
             }
         }
 
