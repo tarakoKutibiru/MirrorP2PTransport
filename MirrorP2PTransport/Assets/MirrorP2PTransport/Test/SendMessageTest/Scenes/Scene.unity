@@ -152,6 +152,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   inputField: {fileID: 1846263278}
   mirrorP2PTransport: {fileID: 1964711785}
+  networkManager: {fileID: 1964711787}
 --- !u!4 &114706387
 Transform:
   m_ObjectHideFlags: 0
