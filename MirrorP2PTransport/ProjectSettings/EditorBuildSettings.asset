@@ -6,6 +6,6 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/MirrorP2PTransport/Test/Tanks/Scenes/Scene.unity
-    guid: 298940588f9ae614ba154a58e0cda19a
+    path: Assets/MirrorP2PTransport/Test/Chat/Scenes/Main.unity
+    guid: 9cddcfe6c7f0bf548904fc652fb89108
   m_configObjects: {}
