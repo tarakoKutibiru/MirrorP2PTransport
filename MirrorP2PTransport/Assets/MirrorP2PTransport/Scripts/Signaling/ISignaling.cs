@@ -1,6 +1,6 @@
 ﻿using Unity.WebRTC;
 
-namespace Unity.RenderStreaming.Signaling
+namespace Mirror.WebRTC
 {
     public delegate void OnOfferHandler(ISignaling signaling, DescData e);
     public delegate void OnAnswerHandler(ISignaling signaling, DescData e);
