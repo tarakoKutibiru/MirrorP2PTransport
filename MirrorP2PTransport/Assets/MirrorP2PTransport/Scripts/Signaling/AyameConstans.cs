@@ -28,7 +28,9 @@ namespace Ayame.Signaling
     {
         public string type = "register";
         public string roomId;
+        public string clientId;
         public string signalingKey;
+        public string authnMetadata;
     }
 
     public class AnswerMessage

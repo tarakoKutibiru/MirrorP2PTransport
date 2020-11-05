@@ -938,6 +938,6 @@ MonoBehaviour:
   OnServerDisconnected:
     m_PersistentCalls:
       m_Calls: []
-  signalingURL: 'wss://ayame-lite.shiguredo.jp/signaling '
-  signalingKey: VGj2LxAwfAXyQ6HICSHq6VpoGRySaF53qKjCLmNyZ2YXw7IV
+  signalingURL: wss://ayame-labo.shiguredo.jp/signaling
+  signalingKey: Ccm2lXGNVt2NdY7Gz84blSFYS89x0Nf3QkibekwlF_44LHY5
   roomId: tarakoKutibiru@room

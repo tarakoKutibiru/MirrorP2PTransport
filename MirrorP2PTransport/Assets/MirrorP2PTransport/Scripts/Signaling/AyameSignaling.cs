@@ -19,6 +19,7 @@ public class AyameSignaling : ISignaling
     private Thread m_signalingThread;
     private AutoResetEvent m_wsCloseEvent;
     private WebSocket m_webSocket;
+    private string clientId;
 
     public string m_signalingKey { get; private set; }
     public string m_roomId { get; private set; }
@@ -31,6 +32,22 @@ public class AyameSignaling : ISignaling
         this.m_roomId = roomId;
         this.m_timeout = timeout;
         this.m_wsCloseEvent = new AutoResetEvent(false);
+
+        this.clientId = RandomString(17);
+    }
+
+    string RandomString(int strLength)
+    {
+        string result = "";
+        string charSet = "0123456789";
+
+        System.Random rand = new System.Random();
+        while (strLength != 0)
+        {
+            result += charSet[Mathf.FloorToInt(rand.Next(0, charSet.Length - 1))];
+            strLength--;
+        }
+        return result;
     }
 
     public void Start()
@@ -214,6 +231,7 @@ public class AyameSignaling : ISignaling
         RegisterMessage registerMessage = new RegisterMessage();
         registerMessage.roomId = this.m_roomId;
         registerMessage.signalingKey = this.m_signalingKey;
+        registerMessage.clientId = this.clientId;
 
         Debug.Log("Signaling: WS connected.");
         this.WSSend(JsonUtility.ToJson(registerMessage));
