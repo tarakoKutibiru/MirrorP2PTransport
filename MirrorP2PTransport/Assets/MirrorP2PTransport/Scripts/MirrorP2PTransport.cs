@@ -128,11 +128,5 @@ namespace Mirror.WebRTC
             return builder.Uri;
         }
         #endregion
-
-        public void DebugSend(string message)
-        {
-            if (this.client.Connected()) this.client.SendMessage(message);
-            if (this.server.IsAlive()) this.server.SendMessage(message);
-        }
     }
 }

@@ -1,7 +1,6 @@
 ﻿using Ayame.Signaling;
+using Cysharp.Threading.Tasks;
 using System.Collections.Generic;
-using Unity.RenderStreaming;
-using Unity.RenderStreaming.Signaling;
 using Unity.WebRTC;
 using UnityEngine;
 
@@ -27,39 +26,38 @@ namespace Mirror.WebRTC
         [SerializeField, Tooltip("Time interval for polling from signaling server")]
         private float interval = 5.0f;
 
-        private AyameSignaling m_signaling;
-        private readonly Dictionary<string, RTCPeerConnection> m_mapConnectionIdAndPeer = new Dictionary<string, RTCPeerConnection>();
+        private AyameSignaling signaling = null;
+        private readonly Dictionary<string, RTCPeerConnection> peerConnections = new Dictionary<string, RTCPeerConnection>();
         private readonly Dictionary<RTCPeerConnection, DataChannelDictionary> m_mapPeerAndChannelDictionary = new Dictionary<RTCPeerConnection, DataChannelDictionary>();
-        private RTCConfiguration m_conf;
-
+        private RTCConfiguration configuration;
 
         public void Start()
         {
-            m_conf = default;
-            m_conf.iceServers = iceServers;
+            this.configuration = default;
+            this.configuration.iceServers = this.iceServers;
 
-            if (this.m_signaling == null)
+            if (this.signaling == null)
             {
-                this.m_signaling = new AyameSignaling(signalingURL, signalingKey, roomId, interval);
+                this.signaling = new AyameSignaling(signalingURL, signalingKey, roomId, interval);
 
-                this.m_signaling.OnAccept += OnAccept;
-                this.m_signaling.OnAnswer += OnAnswer;
-                this.m_signaling.OnOffer += OnOffer;
-                this.m_signaling.OnIceCandidate += OnIceCandidate;
+                this.signaling.OnAccept += OnAccept;
+                this.signaling.OnAnswer += OnAnswer;
+                this.signaling.OnOffer += OnOffer;
+                this.signaling.OnIceCandidate += OnIceCandidate;
             }
-            this.m_signaling.Start();
+            this.signaling.Start();
         }
 
         public virtual void Stop()
         {
-            if (this.m_signaling != null)
+            if (this.signaling != null)
             {
-                this.m_signaling.Stop();
-                this.m_signaling = null;
+                this.signaling.Stop();
+                this.signaling = null;
 
-                this.m_mapConnectionIdAndPeer.Clear();
+                this.peerConnections.Clear();
                 this.m_mapPeerAndChannelDictionary.Clear();
-                this.m_conf = default;
+                this.configuration = default;
             }
         }
 
@@ -70,40 +68,41 @@ namespace Mirror.WebRTC
             bool shouldSendOffer = acceptMessage.isExistClient;
 
             var configuration = GetSelectedSdpSemantics();
-            this.iceServers = configuration.iceServers;
-            m_conf.iceServers = this.iceServers;
 
-            // wait Offer
+            this.iceServers = configuration.iceServers;
+            this.configuration.iceServers = this.iceServers;
+
+            // 相手からのOfferを待つ
             if (!shouldSendOffer) return;
 
-            // send Offer
+            this.SendOffer(acceptMessage.connectionId, configuration).Forget();
+        }
+
+        async UniTask<bool> SendOffer(string connectionId, RTCConfiguration configuration)
+        {
             var pc = new RTCPeerConnection(ref configuration);
-            m_mapConnectionIdAndPeer.Add(acceptMessage.connectionId, pc);
+            this.peerConnections.Add(connectionId, pc);
 
             // create data chennel
             RTCDataChannelInit dataChannelOptions = new RTCDataChannelInit(true);
             RTCDataChannel dataChannel = pc.CreateDataChannel("dataChannel", ref dataChannelOptions);
             dataChannel.OnMessage = bytes => OnMessage(dataChannel, bytes);
-            dataChannel.OnOpen = () => OnOpenChannel(acceptMessage.connectionId, dataChannel);
-            dataChannel.OnClose = () => OnCloseChannel(acceptMessage.connectionId, dataChannel);
+            dataChannel.OnOpen = () => OnOpenChannel(connectionId, dataChannel);
+            dataChannel.OnClose = () => OnCloseChannel(connectionId, dataChannel);
 
             pc.OnDataChannel = new DelegateOnDataChannel(channel => { OnDataChannel(pc, channel); });
-            pc.SetConfiguration(ref m_conf);
+            pc.SetConfiguration(ref this.configuration);
             pc.OnIceCandidate = new DelegateOnIceCandidate(candidate =>
             {
-                Debug.Log("PC OnIceCandidate");
-
-                ayameSignaling.SendCandidate(acceptMessage.connectionId, candidate);
+                this.signaling.SendCandidate(connectionId, candidate);
             });
 
             pc.OnIceConnectionChange = new DelegateOnIceConnectionChange(state =>
             {
-                Debug.LogFormat("OnIceConnectionChange {0}", state);
-
                 if (state == RTCIceConnectionState.Disconnected)
                 {
                     pc.Close();
-                    m_mapConnectionIdAndPeer.Remove(acceptMessage.connectionId);
+                    this.peerConnections.Remove(connectionId);
 
                     this.OnDisconnected();
                 }
@@ -114,41 +113,39 @@ namespace Mirror.WebRTC
             options.offerToReceiveAudio = false;
             options.offerToReceiveVideo = false;
 
-            var opLocalDesc = pc.CreateOffer(ref options);
-            while (opLocalDesc.MoveNext())
-            {
-            }
-            if (opLocalDesc.IsError)
-            {
-                Debug.LogError($"Network Error: {opLocalDesc.Error}");
-                return;
-            }
+            var offer = pc.CreateOffer(ref options);
+            await offer;
+            if (offer.IsError) return false;
 
-            var desc = opLocalDesc.Desc;
-            pc.SetLocalDescription(ref desc);
+            var desc = offer.Desc;
+            var localDescriptionOperation = pc.SetLocalDescription(ref desc);
 
-            ayameSignaling.SendOffer(acceptMessage.connectionId, pc.LocalDescription);
+            this.signaling.SendOffer(connectionId, pc.LocalDescription);
+
+            return true;
         }
 
         void OnOffer(ISignaling signaling, DescData e)
         {
-            RTCSessionDescription _desc;
-            _desc.type = RTCSdpType.Offer;
-            _desc.sdp = e.sdp;
-            var connectionId = e.connectionId;
-            if (m_mapConnectionIdAndPeer.ContainsKey(connectionId))
-            {
-                return;
-            }
+            if (this.peerConnections.ContainsKey(e.connectionId)) return;
+
+            RTCSessionDescription sessionDescriotion;
+            sessionDescriotion.type = RTCSdpType.Offer;
+            sessionDescriotion.sdp = e.sdp;
+
+            this.SendAnswer(e.connectionId, sessionDescriotion).Forget();
+        }
+
+        async UniTask<bool> SendAnswer(string connectionId, RTCSessionDescription sessionDescriotion)
+        {
             var pc = new RTCPeerConnection();
-            m_mapConnectionIdAndPeer.Add(e.connectionId, pc);
+            this.peerConnections.Add(connectionId, pc);
 
             pc.OnDataChannel = new DelegateOnDataChannel(channel => { OnDataChannel(pc, channel); });
-            pc.SetConfiguration(ref m_conf);
+            pc.SetConfiguration(ref this.configuration);
             pc.OnIceCandidate = new DelegateOnIceCandidate(candidate =>
             {
-                Debug.Log("PC OnIceCandidate");
-                signaling.SendCandidate(e.connectionId, candidate);
+                this.signaling.SendCandidate(connectionId, candidate);
             });
 
             pc.OnIceConnectionChange = new DelegateOnIceConnectionChange(state =>
@@ -156,64 +153,51 @@ namespace Mirror.WebRTC
                 if (state == RTCIceConnectionState.Disconnected)
                 {
                     pc.Close();
-                    m_mapConnectionIdAndPeer.Remove(e.connectionId);
+                    this.peerConnections.Remove(connectionId);
+
+                    this.OnDisconnected();
                 }
             });
 
-            pc.SetRemoteDescription(ref _desc);
+            var remoteDescriptionOperation = pc.SetRemoteDescription(ref sessionDescriotion);
+            await remoteDescriptionOperation;
+            if (remoteDescriptionOperation.IsError) return false;
 
             RTCAnswerOptions options = default;
-            var op = pc.CreateAnswer(ref options);
-            while (op.MoveNext())
-            {
-            }
-            if (op.IsError)
-            {
-                Debug.LogError($"Network Error: {op.Error}");
-                return;
-            }
 
-            var desc = op.Desc;
-            var opLocalDesc = pc.SetLocalDescription(ref desc);
-            while (opLocalDesc.MoveNext())
-            {
-            }
-            if (opLocalDesc.IsError)
-            {
-                Debug.LogError($"Network Error: {opLocalDesc.Error}");
-                return;
-            }
+            var answer = pc.CreateAnswer(ref options);
+            await answer;
 
-            signaling.SendAnswer(connectionId, desc);
+            var desc = answer.Desc;
+            var localDescriptionOperation = pc.SetLocalDescription(ref desc);
+            await localDescriptionOperation;
+            if (localDescriptionOperation.IsError) return false;
+
+            this.signaling.SendAnswer(connectionId, desc);
+
+            return true;
         }
 
         void OnAnswer(ISignaling signaling, DescData e)
         {
-            Debug.Log("OnAnswer");
-
             RTCSessionDescription desc = new RTCSessionDescription();
             desc.type = RTCSdpType.Answer;
             desc.sdp = e.sdp;
 
-            RTCPeerConnection pc = this.m_mapConnectionIdAndPeer[e.connectionId];
+            RTCPeerConnection pc = this.peerConnections[e.connectionId];
             pc.SetRemoteDescription(ref desc);
         }
 
         void OnIceCandidate(ISignaling signaling, CandidateData e)
         {
-            if (!m_mapConnectionIdAndPeer.TryGetValue(e.connectionId, out var pc))
-            {
-                return;
-            }
+            if (!this.peerConnections.TryGetValue(e.connectionId, out var pc)) return;
 
-            Debug.Log("OnIceCandidate");
+            RTCIceCandidate​ iceCandidate = default;
+            iceCandidate.candidate = e.candidate;
+            iceCandidate.sdpMLineIndex = e.sdpMLineIndex;
+            iceCandidate.sdpMid = e.sdpMid;
 
-            RTCIceCandidate​ _candidate = default;
-            _candidate.candidate = e.candidate;
-            _candidate.sdpMLineIndex = e.sdpMLineIndex;
-            _candidate.sdpMid = e.sdpMid;
-
-            pc.AddIceCandidate(ref _candidate);
+            pc.AddIceCandidate(ref iceCandidate);
         }
 
         /// <summary>
@@ -230,10 +214,8 @@ namespace Mirror.WebRTC
             }
             channels.Add(channel.Id, channel);
 
-            Debug.Log("OnDataChannel");
-
             channel.OnMessage = bytes => OnMessage(channel, bytes);
-            channel.OnClose = () => OnCloseChannel(this.m_signaling.m_acceptMessage.connectionId, channel);
+            channel.OnClose = () => OnCloseChannel(this.signaling.m_acceptMessage.connectionId, channel);
 
             this.OnConnected();
         }
@@ -244,9 +226,7 @@ namespace Mirror.WebRTC
         /// <param name="channel"></param>
         void OnOpenChannel(string connectionId, RTCDataChannel channel)
         {
-            Debug.Log(channel.Label);
-
-            var pc = this.m_mapConnectionIdAndPeer[connectionId];
+            var pc = this.peerConnections[connectionId];
 
             if (!m_mapPeerAndChannelDictionary.TryGetValue(pc, out var channels))
             {
@@ -267,8 +247,6 @@ namespace Mirror.WebRTC
         /// <param name="channel"></param>
         void OnCloseChannel(string connectionId, RTCDataChannel channel)
         {
-            Debug.Log("OnCloseChannel");
-
             this.OnDisconnected();
         }
 
@@ -352,7 +330,7 @@ namespace Mirror.WebRTC
             RTCConfiguration config = default;
             var rtcIceServers = new List<RTCIceServer>();
 
-            foreach (var iceServer in this.m_signaling.m_acceptMessage.iceServers)
+            foreach (var iceServer in this.signaling.m_acceptMessage.iceServers)
             {
                 RTCIceServer rtcIceServer = new RTCIceServer();
                 rtcIceServer.urls = iceServer.urls.ToArray();

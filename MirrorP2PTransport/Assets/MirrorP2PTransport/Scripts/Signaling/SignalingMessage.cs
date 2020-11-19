@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Unity.RenderStreaming
+namespace Mirror.WebRTC
 {
 #pragma warning disable 0649
     [Serializable]
