@@ -51,7 +51,6 @@ namespace Mirror.WebRTC.Samples
             {
             "SignalingTestScene",
             "SendMessageTestScene",
-            "SignalingTestScene",
             "SyncTransformTestScene",
 
             "BasicScene",

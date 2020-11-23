@@ -1596,9 +1596,9 @@ MonoBehaviour:
   OnServerDisconnected:
     m_PersistentCalls:
       m_Calls: []
-  signalingURL: wss://ayame-lite.shiguredo.jp/signaling
-  signalingKey: VGj2LxAwfAXyQ6HICSHq6VpoGRySaF53qKjCLmNyZ2YXw7IV
-  roomId: tarakoKutibiru@room
+  signalingURL: 
+  signalingKey: 
+  roomId: 
 --- !u!1 &1458789072
 GameObject:
   m_ObjectHideFlags: 0
