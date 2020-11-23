@@ -1495,7 +1495,7 @@ GameObject:
   - component: {fileID: 1282001521}
   m_Layer: 0
   m_Name: NetworkManager
-  m_TagString: Untagged
+  m_TagString: NetworkManager
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1548,7 +1548,7 @@ MonoBehaviour:
   serverTickRate: 30
   offlineScene: 
   onlineScene: 
-  transport: {fileID: 0}
+  transport: {fileID: 1282001521}
   networkAddress: localhost
   maxConnections: 4
   disconnectInactiveConnections: 0
