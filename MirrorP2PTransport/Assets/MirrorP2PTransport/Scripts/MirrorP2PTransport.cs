@@ -21,7 +21,7 @@ namespace Mirror.WebRTC
             return 16 * 1024;
         }
 
-        void Awake()
+        protected virtual void Awake()
         {
             this.client = new MirrorP2PClient();
             this.server = new MirrorP2PServer();
