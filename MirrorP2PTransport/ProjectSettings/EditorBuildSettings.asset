@@ -6,6 +6,30 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/MirrorP2PTransport/Samples/Home/Scenes/HomeScene.unity
+    guid: 33b80e5f9b6cdf343be6b5189910813b
+  - enabled: 1
     path: Assets/MirrorP2PTransport/Samples/Basic/Scenes/BasicScene.unity
     guid: 06423efa4ca0b3c4b95d3917b7f9651b
+  - enabled: 1
+    path: Assets/MirrorP2PTransport/Samples/Chat/Scenes/ChatScene.unity
+    guid: 9cddcfe6c7f0bf548904fc652fb89108
+  - enabled: 1
+    path: Assets/MirrorP2PTransport/Samples/Pong/Scenes/PongScene.unity
+    guid: 8ebb49c441de1304291e7a247fcf880a
+  - enabled: 1
+    path: Assets/MirrorP2PTransport/Samples/RigidbodyPhysics/Scenes/RigidbodyPhysicsScene.unity
+    guid: f787ee0aae6c1d047b0a29675fe0adcd
+  - enabled: 1
+    path: Assets/MirrorP2PTransport/Samples/SendMessageTest/Scenes/SendMessageTestScene.unity
+    guid: 0407270b93900674a889abc85c11634c
+  - enabled: 1
+    path: Assets/MirrorP2PTransport/Samples/SignalingTest/Scenes/SignalingTestScene.unity
+    guid: d3c8bdbac97ea4705983ecf1ddb04d37
+  - enabled: 1
+    path: Assets/MirrorP2PTransport/Samples/SyncTransformTest/Scnes/SyncTransformTestScene.unity
+    guid: d6d4c96bba6368241bcaa5c34c56a731
+  - enabled: 1
+    path: Assets/MirrorP2PTransport/Samples/Tanks/Scenes/TanksScene.unity
+    guid: 298940588f9ae614ba154a58e0cda19a
   m_configObjects: {}
