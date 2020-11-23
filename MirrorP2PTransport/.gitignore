@@ -53,3 +53,6 @@ sysinfo.txt
 
 # End of https://www.gitignore.io/api/unity
 No newline at end of file
+
+AyameSignalingSettings.asset
+AyameSignalingSettings.asset.meta
