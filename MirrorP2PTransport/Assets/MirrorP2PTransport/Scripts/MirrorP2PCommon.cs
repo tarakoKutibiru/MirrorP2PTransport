@@ -12,7 +12,7 @@ namespace Mirror.WebRTC
     {
         protected string signalingURL = "";
         protected string signalingKey = "";
-        protected string roomId = "";
+        protected string roomId       = "";
 
         [SerializeField, Tooltip("Array to set your own STUN/TURN servers")]
         private RTCIceServer[] iceServers = new RTCIceServer[]
@@ -27,22 +27,22 @@ namespace Mirror.WebRTC
         private float interval = 5.0f;
 
         private AyameSignaling signaling = null;
-        private readonly Dictionary<string, RTCPeerConnection> peerConnections = new Dictionary<string, RTCPeerConnection>();
+        private readonly Dictionary<string, RTCPeerConnection>                peerConnections               = new Dictionary<string, RTCPeerConnection>();
         private readonly Dictionary<RTCPeerConnection, DataChannelDictionary> m_mapPeerAndChannelDictionary = new Dictionary<RTCPeerConnection, DataChannelDictionary>();
         private RTCConfiguration configuration;
 
         public void Start()
         {
-            this.configuration = default;
+            this.configuration            = default;
             this.configuration.iceServers = this.iceServers;
 
             if (this.signaling == null)
             {
                 this.signaling = new AyameSignaling(signalingURL, signalingKey, roomId, interval);
 
-                this.signaling.OnAccept += OnAccept;
-                this.signaling.OnAnswer += OnAnswer;
-                this.signaling.OnOffer += OnOffer;
+                this.signaling.OnAccept       += OnAccept;
+                this.signaling.OnAnswer       += OnAnswer;
+                this.signaling.OnOffer        += OnOffer;
                 this.signaling.OnIceCandidate += OnIceCandidate;
             }
             this.signaling.Start();
@@ -69,7 +69,7 @@ namespace Mirror.WebRTC
 
             var configuration = GetSelectedSdpSemantics();
 
-            this.iceServers = configuration.iceServers;
+            this.iceServers               = configuration.iceServers;
             this.configuration.iceServers = this.iceServers;
 
             // 相手からのOfferを待つ
@@ -84,11 +84,12 @@ namespace Mirror.WebRTC
             this.peerConnections.Add(connectionId, pc);
 
             // create data chennel
-            RTCDataChannelInit dataChannelOptions = new RTCDataChannelInit(true);
-            RTCDataChannel dataChannel = pc.CreateDataChannel("dataChannel", ref dataChannelOptions);
+            RTCDataChannelInit dataChannelOptions = new RTCDataChannelInit();
+
+            RTCDataChannel dataChannel = pc.CreateDataChannel("dataChannel", dataChannelOptions);
             dataChannel.OnMessage = bytes => OnMessage(dataChannel, bytes);
-            dataChannel.OnOpen = () => OnOpenChannel(connectionId, dataChannel);
-            dataChannel.OnClose = () => OnCloseChannel(connectionId, dataChannel);
+            dataChannel.OnOpen    = () => OnOpenChannel(connectionId, dataChannel);
+            dataChannel.OnClose   = () => OnCloseChannel(connectionId, dataChannel);
 
             pc.OnDataChannel = new DelegateOnDataChannel(channel => { OnDataChannel(pc, channel); });
             pc.SetConfiguration(ref this.configuration);
@@ -109,11 +110,11 @@ namespace Mirror.WebRTC
             });
 
             RTCOfferOptions options = new RTCOfferOptions();
-            options.iceRestart = false;
+            options.iceRestart          = false;
             options.offerToReceiveAudio = false;
             options.offerToReceiveVideo = false;
 
-            var offer = pc.CreateOffer(ref options);
+            var   offer = pc.CreateOffer(ref options);
             await offer;
             if (offer.IsError) return false;
 
@@ -131,7 +132,7 @@ namespace Mirror.WebRTC
 
             RTCSessionDescription sessionDescriotion;
             sessionDescriotion.type = RTCSdpType.Offer;
-            sessionDescriotion.sdp = e.sdp;
+            sessionDescriotion.sdp  = e.sdp;
 
             this.SendAnswer(e.connectionId, sessionDescriotion).Forget();
         }
@@ -159,17 +160,17 @@ namespace Mirror.WebRTC
                 }
             });
 
-            var remoteDescriptionOperation = pc.SetRemoteDescription(ref sessionDescriotion);
+            var   remoteDescriptionOperation = pc.SetRemoteDescription(ref sessionDescriotion);
             await remoteDescriptionOperation;
             if (remoteDescriptionOperation.IsError) return false;
 
             RTCAnswerOptions options = default;
 
-            var answer = pc.CreateAnswer(ref options);
+            var   answer = pc.CreateAnswer(ref options);
             await answer;
 
-            var desc = answer.Desc;
-            var localDescriptionOperation = pc.SetLocalDescription(ref desc);
+            var   desc = answer.Desc;
+            var   localDescriptionOperation = pc.SetLocalDescription(ref desc);
             await localDescriptionOperation;
             if (localDescriptionOperation.IsError) return false;
 
@@ -182,7 +183,7 @@ namespace Mirror.WebRTC
         {
             RTCSessionDescription desc = new RTCSessionDescription();
             desc.type = RTCSdpType.Answer;
-            desc.sdp = e.sdp;
+            desc.sdp  = e.sdp;
 
             RTCPeerConnection pc = this.peerConnections[e.connectionId];
             pc.SetRemoteDescription(ref desc);
@@ -192,12 +193,14 @@ namespace Mirror.WebRTC
         {
             if (!this.peerConnections.TryGetValue(e.connectionId, out var pc)) return;
 
-            RTCIceCandidate​ iceCandidate = default;
-            iceCandidate.candidate = e.candidate;
-            iceCandidate.sdpMLineIndex = e.sdpMLineIndex;
-            iceCandidate.sdpMid = e.sdpMid;
 
-            pc.AddIceCandidate(ref iceCandidate);
+            RTCIceCandidateInit rtcIceCandidateInit = new RTCIceCandidateInit();
+            rtcIceCandidateInit.candidate     = e.candidate;
+            rtcIceCandidateInit.sdpMLineIndex = e.sdpMLineIndex;
+            rtcIceCandidateInit.sdpMid        = e.sdpMid;
+            RTCIceCandidate​ iceCandidate = new RTCIceCandidate(rtcIceCandidateInit);
+
+            pc.AddIceCandidate(iceCandidate);
         }
 
         /// <summary>
@@ -215,7 +218,7 @@ namespace Mirror.WebRTC
             channels.Add(channel.Id, channel);
 
             channel.OnMessage = bytes => OnMessage(channel, bytes);
-            channel.OnClose = () => OnCloseChannel(this.signaling.m_acceptMessage.connectionId, channel);
+            channel.OnClose   = () => OnCloseChannel(this.signaling.m_acceptMessage.connectionId, channel);
 
             this.OnConnected();
         }
@@ -236,7 +239,7 @@ namespace Mirror.WebRTC
             channels.Add(channel.Id, channel);
 
             channel.OnMessage = bytes => OnMessage(channel, bytes);
-            channel.OnClose = () => OnCloseChannel(connectionId, channel);
+            channel.OnClose   = () => OnCloseChannel(connectionId, channel);
 
             this.OnConnected();
         }
@@ -327,15 +330,15 @@ namespace Mirror.WebRTC
 
         RTCConfiguration GetSelectedSdpSemantics()
         {
-            RTCConfiguration config = default;
-            var rtcIceServers = new List<RTCIceServer>();
+            RTCConfiguration config        = default;
+            var              rtcIceServers = new List<RTCIceServer>();
 
             foreach (var iceServer in this.signaling.m_acceptMessage.iceServers)
             {
                 RTCIceServer rtcIceServer = new RTCIceServer();
-                rtcIceServer.urls = iceServer.urls.ToArray();
-                rtcIceServer.username = iceServer.username;
-                rtcIceServer.credential = iceServer.credential;
+                rtcIceServer.urls           = iceServer.urls.ToArray();
+                rtcIceServer.username       = iceServer.username;
+                rtcIceServer.credential     = iceServer.credential;
                 rtcIceServer.credentialType = RTCIceCredentialType.OAuth;
 
                 rtcIceServers.Add(rtcIceServer);
