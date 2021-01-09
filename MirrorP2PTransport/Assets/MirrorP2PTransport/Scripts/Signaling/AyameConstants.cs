@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Unity.WebRTC;
 
 namespace Ayame.Signaling
 {
@@ -14,6 +15,17 @@ namespace Ayame.Signaling
         public List<IceServer> iceServers;
         public bool isExistClient;
         public bool isExistUser;
+
+        public RTCIceServer[] ToRTCIceServers()
+        {
+            RTCIceServer[] servers = new RTCIceServer[this.iceServers.Count];
+            for (int i = 0; i < this.iceServers.Count; i++)
+            {
+                servers[i] = this.iceServers[i].ToRTCIceServer();
+            }
+
+            return servers;
+        }
     }
 
     [System.Serializable]
@@ -22,6 +34,16 @@ namespace Ayame.Signaling
         public List<string> urls;
         public string username;
         public string credential;
+
+        public RTCIceServer ToRTCIceServer()
+        {
+            RTCIceServer rtcIceServer = new RTCIceServer();
+            rtcIceServer.credential = this.credential;
+            rtcIceServer.username = this.username;
+            rtcIceServer.urls = this.urls.ToArray();
+
+            return rtcIceServer;
+        }
     }
 
     public class RegisterMessage

@@ -14,27 +14,17 @@ namespace Mirror.WebRTC
         protected string signalingKey = "";
         protected string roomId = "";
 
-        [SerializeField, Tooltip("Array to set your own STUN/TURN servers")]
-        private RTCIceServer[] iceServers = new RTCIceServer[]
-        {
-            new RTCIceServer()
-            {
-                urls = new string[] { "stun:stun.l.google.com:19302" }
-            }
-        };
-
         [SerializeField, Tooltip("Time interval for polling from signaling server")]
         private float interval = 5.0f;
 
         private AyameSignaling signaling = null;
         private readonly Dictionary<string, RTCPeerConnection> peerConnections = new Dictionary<string, RTCPeerConnection>();
         private readonly Dictionary<RTCPeerConnection, DataChannelDictionary> m_mapPeerAndChannelDictionary = new Dictionary<RTCPeerConnection, DataChannelDictionary>();
-        private RTCConfiguration configuration;
+        private RTCConfiguration rtcConfiguration;
 
         public void Start()
         {
-            this.configuration = default;
-            this.configuration.iceServers = this.iceServers;
+            this.rtcConfiguration = new RTCConfiguration();
 
             if (this.signaling == null)
             {
@@ -57,7 +47,7 @@ namespace Mirror.WebRTC
 
                 this.peerConnections.Clear();
                 this.m_mapPeerAndChannelDictionary.Clear();
-                this.configuration = default;
+                this.rtcConfiguration = new RTCConfiguration();
             }
         }
 
@@ -67,15 +57,12 @@ namespace Mirror.WebRTC
 
             bool shouldSendOffer = acceptMessage.isExistClient;
 
-            var configuration = GetSelectedSdpSemantics();
-
-            this.iceServers = configuration.iceServers;
-            this.configuration.iceServers = this.iceServers;
+            this.rtcConfiguration.iceServers = acceptMessage.ToRTCIceServers();
 
             // 相手からのOfferを待つ
             if (!shouldSendOffer) return;
 
-            this.SendOffer(acceptMessage.connectionId, configuration).Forget();
+            this.SendOffer(acceptMessage.connectionId, this.rtcConfiguration).Forget();
         }
 
         async UniTask<bool> SendOffer(string connectionId, RTCConfiguration configuration)
@@ -84,14 +71,14 @@ namespace Mirror.WebRTC
             this.peerConnections.Add(connectionId, pc);
 
             // create data chennel
-            RTCDataChannelInit dataChannelOptions = new RTCDataChannelInit(true);
-            RTCDataChannel dataChannel = pc.CreateDataChannel("dataChannel", ref dataChannelOptions);
+            RTCDataChannelInit dataChannelOptions = new RTCDataChannelInit();
+
+            RTCDataChannel dataChannel = pc.CreateDataChannel("dataChannel", dataChannelOptions);
             dataChannel.OnMessage = bytes => OnMessage(dataChannel, bytes);
             dataChannel.OnOpen = () => OnOpenChannel(connectionId, dataChannel);
             dataChannel.OnClose = () => OnCloseChannel(connectionId, dataChannel);
 
             pc.OnDataChannel = new DelegateOnDataChannel(channel => { OnDataChannel(pc, channel); });
-            pc.SetConfiguration(ref this.configuration);
             pc.OnIceCandidate = new DelegateOnIceCandidate(candidate =>
             {
                 this.signaling.SendCandidate(connectionId, candidate);
@@ -138,11 +125,10 @@ namespace Mirror.WebRTC
 
         async UniTask<bool> SendAnswer(string connectionId, RTCSessionDescription sessionDescriotion)
         {
-            var pc = new RTCPeerConnection();
+            var pc = new RTCPeerConnection(ref this.rtcConfiguration);
             this.peerConnections.Add(connectionId, pc);
 
             pc.OnDataChannel = new DelegateOnDataChannel(channel => { OnDataChannel(pc, channel); });
-            pc.SetConfiguration(ref this.configuration);
             pc.OnIceCandidate = new DelegateOnIceCandidate(candidate =>
             {
                 this.signaling.SendCandidate(connectionId, candidate);
@@ -192,12 +178,14 @@ namespace Mirror.WebRTC
         {
             if (!this.peerConnections.TryGetValue(e.connectionId, out var pc)) return;
 
-            RTCIceCandidate​ iceCandidate = default;
-            iceCandidate.candidate = e.candidate;
-            iceCandidate.sdpMLineIndex = e.sdpMLineIndex;
-            iceCandidate.sdpMid = e.sdpMid;
 
-            pc.AddIceCandidate(ref iceCandidate);
+            RTCIceCandidateInit rtcIceCandidateInit = new RTCIceCandidateInit();
+            rtcIceCandidateInit.candidate = e.candidate;
+            rtcIceCandidateInit.sdpMLineIndex = e.sdpMLineIndex;
+            rtcIceCandidateInit.sdpMid = e.sdpMid;
+            RTCIceCandidate​ iceCandidate = new RTCIceCandidate(rtcIceCandidateInit);
+
+            pc.AddIceCandidate(iceCandidate);
         }
 
         /// <summary>
