@@ -21,6 +21,7 @@ namespace Mirror.WebRTC
 
         public void Disconnect()
         {
+            this.SendBye();
             base.Stop();
         }
 

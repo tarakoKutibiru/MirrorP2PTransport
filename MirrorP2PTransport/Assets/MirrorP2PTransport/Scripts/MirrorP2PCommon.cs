@@ -24,31 +24,32 @@ namespace Mirror.WebRTC
 
         public void Start()
         {
+            if (this.signaling != default) return;
+
             this.rtcConfiguration = new RTCConfiguration();
+            this.signaling = new AyameSignaling(signalingURL, signalingKey, roomId, interval);
 
-            if (this.signaling == null)
-            {
-                this.signaling = new AyameSignaling(signalingURL, signalingKey, roomId, interval);
-
-                this.signaling.OnAccept += OnAccept;
-                this.signaling.OnAnswer += OnAnswer;
-                this.signaling.OnOffer += OnOffer;
-                this.signaling.OnIceCandidate += OnIceCandidate;
-            }
+            this.signaling.OnAccept += OnAccept;
+            this.signaling.OnAnswer += OnAnswer;
+            this.signaling.OnOffer += OnOffer;
+            this.signaling.OnIceCandidate += OnIceCandidate;
+            this.signaling.OnBye += OnBye;
+            this.signaling.OnWSDisconected += OnWSDisconnected;
             this.signaling.Start();
         }
 
         public virtual void Stop()
         {
-            if (this.signaling != null)
-            {
-                this.signaling.Stop();
-                this.signaling = null;
+            if (this.signaling == default) return;
 
-                this.peerConnections.Clear();
-                this.m_mapPeerAndChannelDictionary.Clear();
-                this.rtcConfiguration = new RTCConfiguration();
-            }
+            this.signaling.Stop();
+            this.signaling = null;
+
+            this.peerConnections.Clear();
+            this.m_mapPeerAndChannelDictionary.Clear();
+            this.rtcConfiguration = default;
+
+            this.OnDisconnected();
         }
 
         void OnAccept(AyameSignaling ayameSignaling)
@@ -91,7 +92,7 @@ namespace Mirror.WebRTC
                     pc.Close();
                     this.peerConnections.Remove(connectionId);
 
-                    this.OnDisconnected();
+                    this.Stop();
                 }
             });
 
@@ -141,7 +142,7 @@ namespace Mirror.WebRTC
                     pc.Close();
                     this.peerConnections.Remove(connectionId);
 
-                    this.OnDisconnected();
+                    this.Stop();
                 }
             });
 
@@ -174,6 +175,21 @@ namespace Mirror.WebRTC
             pc.SetRemoteDescription(ref desc);
         }
 
+        protected void SendBye()
+        {
+            this.signaling?.SendBye();
+        }
+
+        void OnBye()
+        {
+            this.Stop();
+        }
+
+        void OnWSDisconnected()
+        {
+            this.Stop();
+        }
+
         void OnIceCandidate(ISignaling signaling, CandidateData e)
         {
             if (!this.peerConnections.TryGetValue(e.connectionId, out var pc)) return;
@@ -203,7 +219,7 @@ namespace Mirror.WebRTC
             channels.Add(channel.Id, channel);
 
             channel.OnMessage = bytes => OnMessage(channel, bytes);
-            channel.OnClose = () => OnCloseChannel(this.signaling.m_acceptMessage.connectionId, channel);
+            channel.OnClose = () => OnCloseChannel(this.signaling?.m_acceptMessage?.connectionId, channel);
 
             this.OnConnected();
         }
@@ -235,7 +251,7 @@ namespace Mirror.WebRTC
         /// <param name="channel"></param>
         void OnCloseChannel(string connectionId, RTCDataChannel channel)
         {
-            this.OnDisconnected();
+            this.Stop();
         }
 
         protected virtual void OnMessage(RTCDataChannel channel, byte[] bytes)
@@ -262,7 +278,7 @@ namespace Mirror.WebRTC
 
             dataChannel.Send(message);
 
-            Debug.Log("Send Message");
+            // Debug.Log("Send Message");
         }
 
         protected bool SendMessage(byte[] bytes)
@@ -278,23 +294,25 @@ namespace Mirror.WebRTC
 
             dataChannel.Send(bytes);
 
-            Debug.Log("Send Message");
+            // Debug.Log("Send Message");
 
             return true;
         }
 
         protected virtual void OnConnected()
         {
-
+            Debug.Log("OnConnected");
         }
 
         protected virtual void OnDisconnected()
         {
-
+            Debug.Log("OnDisconnected");
         }
 
         protected bool IsConnected()
         {
+            if (this.signaling == default) return false;
+
             RTCDataChannel dataChannel = this.GetDataChannel("dataChannel");
             if (dataChannel == null) return false;
             return dataChannel.ReadyState == RTCDataChannelState.Open;
@@ -311,27 +329,6 @@ namespace Mirror.WebRTC
             }
 
             return null;
-        }
-
-        RTCConfiguration GetSelectedSdpSemantics()
-        {
-            RTCConfiguration config = default;
-            var rtcIceServers = new List<RTCIceServer>();
-
-            foreach (var iceServer in this.signaling.m_acceptMessage.iceServers)
-            {
-                RTCIceServer rtcIceServer = new RTCIceServer();
-                rtcIceServer.urls = iceServer.urls.ToArray();
-                rtcIceServer.username = iceServer.username;
-                rtcIceServer.credential = iceServer.credential;
-                rtcIceServer.credentialType = RTCIceCredentialType.OAuth;
-
-                rtcIceServers.Add(rtcIceServer);
-            }
-
-            config.iceServers = rtcIceServers.ToArray();
-
-            return config;
         }
     }
 }

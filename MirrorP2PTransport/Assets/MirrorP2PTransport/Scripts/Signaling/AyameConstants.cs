@@ -85,4 +85,9 @@ namespace Ayame.Signaling
     {
         public string type = "pong";
     }
+
+    public class ByeMessage
+    {
+        public string type = "bye";
+    }
 }
