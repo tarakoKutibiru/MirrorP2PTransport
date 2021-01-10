@@ -1,2 +1,5 @@
 # Mac
 *.DS_Store
+
+# ParrelSync Clone Project
+*_clone_[0-9]*/
