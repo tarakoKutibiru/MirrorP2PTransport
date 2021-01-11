@@ -182,18 +182,17 @@ namespace Mirror.WebRTC
 
         void OnBye()
         {
-            this.Stop();
+
         }
 
         void OnWSDisconnected()
         {
-            this.Stop();
+
         }
 
         void OnIceCandidate(ISignaling signaling, CandidateData e)
         {
             if (!this.peerConnections.TryGetValue(e.connectionId, out var pc)) return;
-
 
             RTCIceCandidateInit rtcIceCandidateInit = new RTCIceCandidateInit();
             rtcIceCandidateInit.candidate = e.candidate;

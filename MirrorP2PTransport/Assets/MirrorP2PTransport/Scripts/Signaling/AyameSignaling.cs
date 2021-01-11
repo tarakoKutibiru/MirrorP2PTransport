@@ -265,7 +265,7 @@ namespace Mirror.WebRTC
             m_wsCloseEvent.Set();
             m_webSocket = null;
 
-            this.OnWSDisconected?.Invoke();
+            //  this.OnWSDisconected?.Invoke();
         }
 
         private void WSSend(object data)
