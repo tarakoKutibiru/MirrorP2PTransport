@@ -22,6 +22,14 @@ namespace Mirror.WebRTC
         private readonly Dictionary<RTCPeerConnection, DataChannelDictionary> m_mapPeerAndChannelDictionary = new Dictionary<RTCPeerConnection, DataChannelDictionary>();
         private RTCConfiguration rtcConfiguration;
 
+        enum State
+        {
+            Running,
+            Stop,
+        }
+
+        State state = State.Stop;
+
         public void Start()
         {
             if (this.signaling != default) return;
@@ -36,6 +44,8 @@ namespace Mirror.WebRTC
             this.signaling.OnBye += OnBye;
             this.signaling.OnWSDisconected += OnWSDisconnected;
             this.signaling.Start();
+
+            this.state = State.Running;
         }
 
         public virtual void Stop()
@@ -49,7 +59,7 @@ namespace Mirror.WebRTC
             this.m_mapPeerAndChannelDictionary.Clear();
             this.rtcConfiguration = default;
 
-            this.OnDisconnected();
+            this.state = State.Stop;
         }
 
         void OnAccept(AyameSignaling ayameSignaling)
@@ -92,7 +102,7 @@ namespace Mirror.WebRTC
                     pc.Close();
                     this.peerConnections.Remove(connectionId);
 
-                    this.Stop();
+                    this.OnDisconnected();
                 }
             });
 
@@ -142,7 +152,7 @@ namespace Mirror.WebRTC
                     pc.Close();
                     this.peerConnections.Remove(connectionId);
 
-                    this.Stop();
+                    this.OnDisconnected();
                 }
             });
 
@@ -250,7 +260,7 @@ namespace Mirror.WebRTC
         /// <param name="channel"></param>
         void OnCloseChannel(string connectionId, RTCDataChannel channel)
         {
-            this.Stop();
+            this.OnDisconnected();
         }
 
         protected virtual void OnMessage(RTCDataChannel channel, byte[] bytes)
@@ -261,7 +271,7 @@ namespace Mirror.WebRTC
 
         protected virtual void OnMessage(string message)
         {
-            Debug.LogFormat("OnMessage {0}", message);
+            //   Debug.LogFormat("OnMessage {0}", message);
         }
 
         public void SendMessage(string message)
@@ -306,6 +316,16 @@ namespace Mirror.WebRTC
         protected virtual void OnDisconnected()
         {
             Debug.Log("OnDisconnected");
+
+            this.signaling.Stop();
+            this.signaling = null;
+
+            this.peerConnections.Clear();
+            this.m_mapPeerAndChannelDictionary.Clear();
+            this.rtcConfiguration = default;
+
+            // 再接続を試みる
+            this.Start();
         }
 
         protected bool IsConnected()

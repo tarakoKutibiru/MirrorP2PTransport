@@ -260,10 +260,10 @@ namespace Mirror.WebRTC
 
         private void WSClosed(object sender, CloseEventArgs e)
         {
-            Debug.LogError($"Signaling: WS connection closed, code: {e.Code}");
+            //  Debug.LogError($"Signaling: WS connection closed, code: {e.Code}");
 
-            m_wsCloseEvent.Set();
-            m_webSocket = null;
+            //  m_wsCloseEvent.Set();
+            //  m_webSocket = null;
 
             //  this.OnWSDisconected?.Invoke();
         }

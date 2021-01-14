@@ -10,6 +10,14 @@ namespace Mirror.WebRTC
         public event Action<int> OnDisconnectedAction; // connectionId
         public event Action<int, Exception> OnReceivedErrorAction; // connectionId
 
+        enum State
+        {
+            RUNNING,
+            STOP,
+        };
+
+        State state = State.STOP;
+
         public void Start(string signalingURL, string signalingKey, string roomId)
         {
             this.signalingURL = signalingURL;
@@ -17,10 +25,14 @@ namespace Mirror.WebRTC
             this.roomId = roomId;
 
             base.Start();
+
+            this.state = State.RUNNING;
         }
 
         public override void Stop()
         {
+            this.state = State.STOP;
+
             base.Stop();
         }
 
@@ -60,6 +72,8 @@ namespace Mirror.WebRTC
             base.OnDisconnected();
 
             this.OnDisconnectedAction?.Invoke(1);
+
+            if (this.state == State.RUNNING) this.Start(signalingKey: signalingKey, signalingURL: signalingURL, roomId: roomId);
         }
     }
 }
