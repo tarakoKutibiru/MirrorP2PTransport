@@ -1,5 +1,4 @@
 ﻿using System;
-using Unity.WebRTC;
 
 namespace Mirror.WebRTC
 {
@@ -10,49 +9,95 @@ namespace Mirror.WebRTC
         public Action OnConnectedAction = null;
         public Action OnDisconnectedAction = null;
 
-        public void Connect(string signalingURL, string signalingKey, string roomId)
+        string signalingURL;
+        string signalingKey;
+
+        string roomId;
+        public string RoomId { get; set; }
+
+        MirrorP2PConnection connection = default;
+
+        public MirrorP2PClient(string signalingURL, string signalingKey)
         {
             this.signalingURL = signalingURL;
             this.signalingKey = signalingKey;
-            this.roomId = roomId;
+        }
 
-            base.Start();
+        public void Run()
+        {
+            this.state = State.Runnning;
+            this.Connect();
+        }
+
+        public void Stop()
+        {
+            this.state = State.Stop;
+            this.Disconnect();
+        }
+
+        public void Connect()
+        {
+            if (this.IsConnected()) return;
+
+            var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.roomId);
+            connection.onConnected += this.OnConnected;
+            connection.onDisconnected += this.OnDisconnected;
+            connection.onMessage += this.OnMessage;
+
+            connection.Connect();
+
+            this.connection = connection;
         }
 
         public void Disconnect()
         {
-            base.Stop();
+            if (!this.IsConnected()) return;
+
+            this.connection.Disconnect();
         }
 
         public bool Send(byte[] data)
         {
-            return base.SendMessage(data);
+            if (!this.IsConnected()) return false;
+
+            this.connection.SendMessage(data);
+
+            return true;
         }
 
-        protected override void OnMessage(RTCDataChannel channel, byte[] bytes)
+        protected void OnMessage(byte[] bytes)
         {
-            base.OnMessage(channel, bytes);
+            if (this.state == State.Stop) return;
 
             this.OnReceivedDataAction?.Invoke(bytes, 0);
         }
 
-        public bool Connected()
+        public bool IsConnected()
         {
-            return base.IsConnected();
+            if (this.connection == default) return false;
+            if (!this.connection.IsConnected()) return false;
+
+            return true;
         }
 
-        protected override void OnConnected()
+        protected void OnConnected()
         {
-            base.OnConnected();
-
             this.OnConnectedAction?.Invoke();
         }
 
-        protected override void OnDisconnected()
+        protected void OnDisconnected()
         {
-            base.OnDisconnected();
-
             this.OnDisconnectedAction?.Invoke();
+
+            // 再接続
+            if (this.state == State.Runnning)
+            {
+                this.Connect();
+            }
+            else if (this.state == State.Stop)
+            {
+                this.connection = default;
+            }
         }
     }
 }

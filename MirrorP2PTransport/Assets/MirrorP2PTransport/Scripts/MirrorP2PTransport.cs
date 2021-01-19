@@ -23,7 +23,7 @@ namespace Mirror.WebRTC
 
         protected virtual void Awake()
         {
-            this.client = new MirrorP2PClient();
+            this.client = new MirrorP2PClient(signalingURL: this.signalingURL, signalingKey: this.signalingKey);
             this.server = new MirrorP2PServer();
 
             this.client.OnReceivedDataAction += (data, channelId) => { this.OnClientDataReceived?.Invoke(new ArraySegment<byte>(data), channelId); };
@@ -57,17 +57,20 @@ namespace Mirror.WebRTC
 
         public override bool ClientConnected()
         {
-            return this.client.Connected();
+            this.client.Run();
+
+            return true;
         }
 
         public override void ClientConnect(string hostname)
         {
-            this.client.Connect(this.signalingURL, this.signalingKey, this.roomId);
+            this.client.RoomId = this.roomId;
+            this.client.Run();
         }
 
         public override void ClientDisconnect()
         {
-            this.client.Disconnect();
+            this.client.Stop();
         }
 
         public override bool ClientSend(int channelId, ArraySegment<byte> segment)
@@ -82,7 +85,7 @@ namespace Mirror.WebRTC
         #region Server
         public override bool ServerActive()
         {
-            return this.server.IsAlive();
+            return this.server.IsRunning();
         }
 
         public override void ServerStart()
