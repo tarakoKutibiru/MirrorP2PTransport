@@ -49,7 +49,7 @@ namespace Mirror.WebRTC
 
         public override void Shutdown()
         {
-            this.client.Disconnect();
+            this.client.Stop();
             this.server.Stop();
         }
 
@@ -57,6 +57,7 @@ namespace Mirror.WebRTC
 
         public override bool ClientConnected()
         {
+            this.client.RoomId = this.roomId;
             this.client.Run();
 
             return true;

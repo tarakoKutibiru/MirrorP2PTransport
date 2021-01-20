@@ -50,13 +50,19 @@ namespace Mirror.WebRTC
 
         void Connect()
         {
-            var connection = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: roomId);
-            connection.onConnected += this.OnConnected;
-            connection.onDisconnected += this.OnDisconnected;
-            connection.onMessage += this.OnMessage;
-
-            connection.Connect();
-            this.connection = connection;
+            if (this.connection == default)
+            {
+                var connection = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: roomId);
+                connection.onConnected += this.OnConnected;
+                connection.onDisconnected += this.OnDisconnected;
+                connection.onMessage += this.OnMessage;
+                connection.Connect();
+                this.connection = connection;
+            }
+            else
+            {
+                this.connection.Connect();
+            }
         }
 
         public bool Disconnect(int connectionId)
@@ -96,15 +102,7 @@ namespace Mirror.WebRTC
         void OnDisconnected()
         {
             this.OnDisconnectedAction?.Invoke(MirrorP2PServer.connectionId);
-
-            if (this.state == State.Runnning)
-            {
-                this.Connect();
-            }
-            else if (this.state == State.Stop)
-            {
-                this.connection = default;
-            }
+            UnityEngine.Debug.Log("MirrorP2PServer:OnDisconnected");
         }
     }
 }

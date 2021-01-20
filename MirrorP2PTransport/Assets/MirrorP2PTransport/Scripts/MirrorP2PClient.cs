@@ -13,7 +13,7 @@ namespace Mirror.WebRTC
         string signalingKey;
 
         string roomId;
-        public string RoomId { get; set; }
+        public string RoomId { get => this.roomId; set => this.roomId = value; }
 
         MirrorP2PConnection connection = default;
 
@@ -35,7 +35,7 @@ namespace Mirror.WebRTC
             this.Disconnect();
         }
 
-        public void Connect()
+        void Connect()
         {
             if (this.IsConnected()) return;
 
@@ -49,7 +49,7 @@ namespace Mirror.WebRTC
             this.connection = connection;
         }
 
-        public void Disconnect()
+        void Disconnect()
         {
             if (!this.IsConnected()) return;
 
@@ -89,15 +89,8 @@ namespace Mirror.WebRTC
         {
             this.OnDisconnectedAction?.Invoke();
 
-            // 再接続
-            if (this.state == State.Runnning)
-            {
-                this.Connect();
-            }
-            else if (this.state == State.Stop)
-            {
-                this.connection = default;
-            }
+            this.connection?.Disconnect();
+            this.connection = default;
         }
     }
 }
