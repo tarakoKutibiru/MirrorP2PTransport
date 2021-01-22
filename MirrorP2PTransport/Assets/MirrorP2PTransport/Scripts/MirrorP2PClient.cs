@@ -39,14 +39,21 @@ namespace Mirror.WebRTC
         {
             if (this.IsConnected()) return;
 
-            var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.roomId);
-            connection.onConnected += this.OnConnected;
-            connection.onDisconnected += this.OnDisconnected;
-            connection.onMessage += this.OnMessage;
+            if (this.connection == default)
+            {
+                var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.roomId);
+                connection.onConnected += this.OnConnected;
+                connection.onDisconnected += this.OnDisconnected;
+                connection.onMessage += this.OnMessage;
 
-            connection.Connect();
+                connection.Connect();
 
-            this.connection = connection;
+                this.connection = connection;
+            }
+            else
+            {
+                this.connection.Connect();
+            }
         }
 
         void Disconnect()
@@ -89,8 +96,15 @@ namespace Mirror.WebRTC
         {
             this.OnDisconnectedAction?.Invoke();
 
-            this.connection?.Disconnect();
-            this.connection = default;
+            if (this.state == State.Runnning)
+            {
+                this.connection = default;
+                this.Connect();
+            }
+            else if (this.state == State.Stop)
+            {
+                this.connection = default;
+            }
         }
     }
 }

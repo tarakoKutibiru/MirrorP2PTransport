@@ -19,7 +19,9 @@ namespace Mirror.WebRTC
         private Thread m_signalingThread;
         private AutoResetEvent m_wsCloseEvent;
         private WebSocket m_webSocket;
+
         private string clientId;
+        public string ClientId => clientId;
 
         public string m_signalingKey { get; private set; }
         public string m_roomId { get; private set; }
@@ -33,7 +35,7 @@ namespace Mirror.WebRTC
             this.m_timeout = timeout;
             this.m_wsCloseEvent = new AutoResetEvent(false);
 
-            this.clientId = RandomString(17);
+            this.clientId = RandomString(8);
         }
 
         string RandomString(int strLength)

@@ -103,6 +103,14 @@ namespace Mirror.WebRTC
         {
             this.OnDisconnectedAction?.Invoke(MirrorP2PServer.connectionId);
             UnityEngine.Debug.Log("MirrorP2PServer:OnDisconnected");
+            if (this.state == State.Runnning)
+            {
+                this.Connect();
+            }
+            else if (this.state == State.Stop)
+            {
+                this.connection = default;
+            }
         }
     }
 }
