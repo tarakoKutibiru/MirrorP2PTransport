@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Mirror.WebRTC
 {
@@ -14,7 +15,11 @@ namespace Mirror.WebRTC
 
         public override bool Available()
         {
+#if UNITY_EDITOR || UNITY_IOS || UNITY_STANDALONE
             return true;
+#else
+            return false;
+#endif
         }
         public override int GetMaxPacketSize(int channelId = 0)
         {
@@ -23,6 +28,11 @@ namespace Mirror.WebRTC
 
         protected virtual void Awake()
         {
+            // tell MirrorP2PTransport to use Unity's Debug.Log
+            Telepathy.Logger.Log = Debug.Log;
+            Telepathy.Logger.LogWarning = Debug.LogWarning;
+            Telepathy.Logger.LogError = Debug.LogError;
+
             this.client = new MirrorP2PClient(signalingURL: this.signalingURL, signalingKey: this.signalingKey);
             this.server = new MirrorP2PServer();
 
@@ -35,6 +45,8 @@ namespace Mirror.WebRTC
             this.server.OnDisconnectedAction += (connectionid) => { this.OnServerDisconnected?.Invoke(connectionid); };
 
             Unity.WebRTC.WebRTC.Initialize(Unity.WebRTC.EncoderType.Software);
+
+            Debug.Log("MirrorP2PTransport initialized!");
         }
 
         private void Start()

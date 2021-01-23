@@ -12,7 +12,7 @@ namespace Mirror.WebRTC
         string signalingURL;
         string signalingKey;
 
-        string roomId;
+        string roomId = "";
         public string RoomId { get => this.roomId; set => this.roomId = value; }
 
         MirrorP2PConnection connection = default;
@@ -65,7 +65,12 @@ namespace Mirror.WebRTC
 
         public bool Send(byte[] data)
         {
-            if (!this.IsConnected()) return false;
+            if (!this.IsConnected())
+            {
+                UnityEngine.Debug.LogError("MirrorP2PClient Send Error.Not Connected.");
+
+                return false;
+            }
 
             this.connection.SendMessage(data);
 

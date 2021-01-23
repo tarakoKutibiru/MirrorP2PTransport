@@ -14,10 +14,12 @@ namespace Mirror.WebRTC
 
         // TODO: UniRX
         public delegate void OnMessageHandler(byte[] bytes);
+        public delegate void OnMessageStrHandler(string message);
         public delegate void OnConnectedHandler();
         public delegate void OnDisconnectedHandler();
 
         public event OnMessageHandler onMessage;
+        public event OnMessageStrHandler onMessageStr;
         public event OnConnectedHandler onConnected;
         public event OnDisconnectedHandler onDisconnected;
 
@@ -113,6 +115,20 @@ namespace Mirror.WebRTC
             return true;
         }
 
+        public bool SendMessage(string message)
+        {
+            if (!this.IsConnected())
+            {
+                UnityEngine.Debug.LogError("SendMessage Error. Is not connected.");
+
+                return false;
+            }
+
+            this.GetDataChannel(this.dataChannelLabel).Send(message);
+
+            return true;
+        }
+
         void OnMessage(RTCDataChannel dataChannel, byte[] bytes)
         {
             UnityEngine.Debug.Log($"OnMessage: label {dataChannel.Label}");
@@ -123,6 +139,7 @@ namespace Mirror.WebRTC
         void OnConnected()
         {
             UnityEngine.Debug.LogError("OnConnected");
+
             this.onConnected?.Invoke();
         }
 
