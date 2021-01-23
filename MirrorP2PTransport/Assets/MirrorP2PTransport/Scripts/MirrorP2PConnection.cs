@@ -9,17 +9,12 @@ namespace Mirror.WebRTC
 
     public class MirrorP2PConnection
     {
-        string dataChannelLabel = "dataChannel";
-        string otherPeerDataChannelLabel = "";
-
         // TODO: UniRX
-        public delegate void OnMessageHandler(byte[] bytes);
-        public delegate void OnMessageStrHandler(string message);
+        public delegate void OnMessageHandler(string dataChannelLabel, byte[] bytes);
         public delegate void OnConnectedHandler();
         public delegate void OnDisconnectedHandler();
 
         public event OnMessageHandler onMessage;
-        public event OnMessageStrHandler onMessageStr;
         public event OnConnectedHandler onConnected;
         public event OnDisconnectedHandler onDisconnected;
 
@@ -28,6 +23,7 @@ namespace Mirror.WebRTC
         string signalingURL;
         string signalingKey;
         string roomId;
+        string[] dataChannelLabel;
 
         AyameSignaling signaling = default;
         RTCConfiguration rtcConfiguration = default;
@@ -50,7 +46,7 @@ namespace Mirror.WebRTC
             this.roomId = roomId;
         }
 
-        public void Connect()
+        public void Connect(string[] dataChannnelLabel = default)
         {
             if (this.state == State.Running) return;
             this.state = State.Running;
@@ -62,7 +58,8 @@ namespace Mirror.WebRTC
             this.signaling.OnIceCandidate += OnIceCandidate;
 
             this.rtcConfiguration = new RTCConfiguration();
-            this.dataChannelLabel = this.signaling.ClientId;
+
+            this.dataChannelLabel = dataChannnelLabel;
 
             this.signaling.Start();
         }
@@ -78,53 +75,41 @@ namespace Mirror.WebRTC
 
             this.peerConnections.Clear();
             this.mapPeerAndChannelDictionary.Clear();
+
+            this.dataChannelLabel = default;
         }
 
-        public bool IsConnected()
+        public bool IsConnectedAllDataChannel()
         {
-            // own
+            foreach (var label in this.dataChannelLabel)
             {
-                var dataChannel = this.GetDataChannel(this.dataChannelLabel);
-                if (dataChannel == default) return false;
-                if (dataChannel.ReadyState != RTCDataChannelState.Open) return false;
-            }
-
-            // other
-            {
-                var dataChannel = this.GetDataChannel(this.otherPeerDataChannelLabel);
-                if (dataChannel == default) return false;
-                if (dataChannel.ReadyState != RTCDataChannelState.Open) return false;
+                if (!this.IsConnectedDataChannel(label)) return false;
             }
 
             return true;
         }
 
-        public bool SendMessage(byte[] bytes)
+        public bool IsConnectedDataChannel(string dataChannelLabel)
         {
-            //   UnityEngine.Debug.Log("SendMessage");
-
-            if (!this.IsConnected())
-            {
-                UnityEngine.Debug.LogError("SendMessage Error. Is not connected.");
-
-                return false;
-            }
-
-            this.GetDataChannel(this.dataChannelLabel).Send(bytes);
+            var dataChannel = this.GetDataChannel(dataChannelLabel);
+            if (dataChannel == default) return false;
+            if (dataChannel.ReadyState != RTCDataChannelState.Open) return false;
 
             return true;
         }
 
-        public bool SendMessage(string message)
+        public bool SendMessage(string dataChannelLabel, byte[] bytes)
         {
-            if (!this.IsConnected())
-            {
-                UnityEngine.Debug.LogError("SendMessage Error. Is not connected.");
+            if (!this.IsConnectedDataChannel(dataChannelLabel)) return false;
+            this.GetDataChannel(dataChannelLabel).Send(bytes);
 
-                return false;
-            }
+            return true;
+        }
 
-            this.GetDataChannel(this.dataChannelLabel).Send(message);
+        public bool SendMessage(string dataChannelLabel, string message)
+        {
+            if (!this.IsConnectedDataChannel(dataChannelLabel)) return false;
+            this.GetDataChannel(dataChannelLabel).Send(message);
 
             return true;
         }
@@ -133,25 +118,30 @@ namespace Mirror.WebRTC
         {
             UnityEngine.Debug.Log($"OnMessage: label {dataChannel.Label}");
 
-            this.onMessage?.Invoke(bytes);
+            this.onMessage?.Invoke(dataChannel.Label, bytes);
         }
 
-        void OnConnected()
+        void OnConnectedDataChannel(RTCDataChannel dataChannel)
         {
-            UnityEngine.Debug.LogError("OnConnected");
+            if (this.IsConnectedAllDataChannel())
+            {
+                this.onConnected?.Invoke();
+            }
+        }
 
-            this.onConnected?.Invoke();
+        void OnDisconnectedDataChannel(RTCDataChannel dataChannel)
+        {
+            UnityEngine.Debug.LogError("OnDisconnected");
+
+            if (this.IsConnectedAllDataChannel()) return;
+            this.OnDisconnected();
         }
 
         void OnDisconnected()
         {
-            UnityEngine.Debug.LogError("OnDisconnected");
-
-            if (this.state == State.Running)
-            {
-                this.Disconnect();
-                this.onDisconnected?.Invoke();
-            }
+            if (this.state != State.Running) return;
+            this.Disconnect();
+            this.onDisconnected?.Invoke();
         }
 
         #region signaling
@@ -251,13 +241,16 @@ namespace Mirror.WebRTC
         {
             var pc = new RTCPeerConnection(ref this.rtcConfiguration);
 
-            RTCDataChannelInit dataChannelInit = new RTCDataChannelInit();
-            dataChannelInit.ordered = true;
+            foreach (var label in this.dataChannelLabel)
+            {
+                RTCDataChannelInit dataChannelInit = new RTCDataChannelInit();
+                dataChannelInit.ordered = true;
 
-            RTCDataChannel dataChannel = pc.CreateDataChannel(this.dataChannelLabel, dataChannelInit);
-            dataChannel.OnOpen += () => this.OnOpenChannel(connectionId, dataChannel);
-            dataChannel.OnMessage += bytes => this.OnMessage(dataChannel, bytes);
-            dataChannel.OnClose += () => this.OnCloseChannel(connectionId, dataChannel);
+                RTCDataChannel dataChannel = pc.CreateDataChannel(label, dataChannelInit);
+                dataChannel.OnOpen += () => this.OnOpenChannel(connectionId, dataChannel);
+                dataChannel.OnMessage += bytes => this.OnMessage(dataChannel, bytes);
+                dataChannel.OnClose += () => this.OnCloseChannel(connectionId, dataChannel);
+            }
 
             pc.OnDataChannel = channel => this.OnDataChannel(connectionId, channel);
             pc.OnIceCandidate = candidate =>
@@ -286,8 +279,6 @@ namespace Mirror.WebRTC
         {
             UnityEngine.Debug.Log($"OnDataChannel: {connectionId}");
 
-            this.otherPeerDataChannelLabel = dataChannel.Label;
-
             dataChannel.OnOpen += () => this.OnOpenChannel(connectionId, dataChannel);
             dataChannel.OnMessage += bytes => this.OnMessage(dataChannel, bytes);
             dataChannel.OnClose += () => this.OnCloseChannel(connectionId, dataChannel);
@@ -299,17 +290,13 @@ namespace Mirror.WebRTC
         {
             UnityEngine.Debug.Log($"OnOpenChannnel: {connectionId}");
             this.AddDataChannel(connectionId, channel);
-
-            if (!this.IsConnected()) return;
-            this.onConnected?.Invoke();
+            this.OnConnectedDataChannel(channel);
         }
 
         void OnCloseChannel(string connectionId, RTCDataChannel channel)
         {
             UnityEngine.Debug.Log($"OnCloseChannel: {connectionId}");
-
-            if (channel.Label != this.dataChannelLabel) return;
-            this.OnDisconnected();
+            this.OnDisconnectedDataChannel(channel);
         }
 
         RTCDataChannel GetDataChannel(string label)

@@ -77,7 +77,7 @@ namespace Mirror.WebRTC
             return true;
         }
 
-        protected void OnMessage(byte[] bytes)
+        protected void OnMessage(string dataChannelLabel, byte[] bytes)
         {
             if (this.state == State.Stop) return;
 

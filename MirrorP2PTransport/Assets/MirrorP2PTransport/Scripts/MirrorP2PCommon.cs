@@ -2,6 +2,12 @@
 {
     public class Common
     {
+        protected enum DataChannelLabelType
+        {
+            Mirror,
+            TranportInternal,
+        }
+
         protected enum State
         {
             Runnning,

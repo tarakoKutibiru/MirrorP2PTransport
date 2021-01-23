@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Timers;
-using UnityEngine;
 
 namespace Mirror.WebRTC
 {
@@ -19,8 +18,6 @@ namespace Mirror.WebRTC
         string roomId;
 
         MirrorP2PConnection connection = default;
-
-
 
         public void Start(string signalingURL, string signalingKey, string roomId)
         {
@@ -51,7 +48,7 @@ namespace Mirror.WebRTC
         {
             if (!this.IsConnected()) return false;
 
-            this.connection.SendMessage(data);
+            this.connection.SendMessage(DataChannelLabelType.Mirror.ToString(), data);
 
             return true;
         }
@@ -64,12 +61,25 @@ namespace Mirror.WebRTC
                 connection.onConnected += this.OnConnected;
                 connection.onDisconnected += this.OnDisconnected;
                 connection.onMessage += this.OnMessage;
-                connection.Connect();
+
+                var dataChannelLabels = new string[]
+                {
+                    DataChannelLabelType.Mirror.ToString(),
+                    DataChannelLabelType.TranportInternal.ToString(),
+                };
+                connection.Connect(dataChannelLabels);
+
                 this.connection = connection;
             }
             else
             {
-                this.connection.Connect();
+                var dataChannelLabels = new string[]
+                {
+                    DataChannelLabelType.Mirror.ToString(),
+                    DataChannelLabelType.TranportInternal.ToString(),
+                };
+
+                this.connection.Connect(dataChannelLabels);
             }
         }
 
@@ -92,22 +102,40 @@ namespace Mirror.WebRTC
         public bool IsConnected()
         {
             if (this.connection == default) return false;
-            if (!this.connection.IsConnected()) return false;
+            if (!this.connection.IsConnectedAllDataChannel()) return false;
 
             return true;
         }
 
-        void OnMessage(byte[] bytes)
+        void OnMessage(string dataChannelLabel, byte[] bytes)
         {
-            string text = System.Text.Encoding.UTF8.GetString(bytes);
+            DataChannelLabelType dataChannelLabelType;
+            if (!Enum.TryParse<DataChannelLabelType>(dataChannelLabel, out dataChannelLabelType)) return;
+
+            switch (dataChannelLabelType)
+            {
+                case DataChannelLabelType.Mirror:
+                    {
+                        this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, bytes, MirrorP2PServer.channelId);
+
+                        break;
+                    }
+
+                case DataChannelLabelType.TranportInternal:
+                    {
+                        // TODO:
+                        /*            string text = System.Text.Encoding.UTF8.GetString(bytes);
             TransportMessages.Message message = JsonUtility.FromJson<TransportMessages.Message>(text);
             if (!string.IsNullOrEmpty(message.type))
             {
                 if (message.type == TransportMessages.PongMessage.type) this.OnReceivedPongMessage(JsonUtility.FromJson<TransportMessages.PongMessage>(text));
                 return;
+            }*/
+
+                        break;
+                    }
             }
 
-            this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, bytes, MirrorP2PServer.channelId);
         }
 
         void OnConnected()
@@ -153,14 +181,14 @@ namespace Mirror.WebRTC
 
         void Update(object sender, ElapsedEventArgs e)
         {
-            if (this.connection == default) return;
-            if (!this.connection.IsConnected()) return;
+            /*            if (this.connection == default) return;
+                        if (!this.connection.IsConnected()) return;
 
-            TransportMessages.PingMessage pingMessage = new TransportMessages.PingMessage();
-            if (this.connection.SendMessage(JsonUtility.ToJson(pingMessage)))
-            {
-                this.latestPingTime = DateTime.UtcNow;
-            }
+                        TransportMessages.PingMessage pingMessage = new TransportMessages.PingMessage();
+                        if (this.connection.SendMessage(JsonUtility.ToJson(pingMessage)))
+                        {
+                            this.latestPingTime = DateTime.UtcNow;
+                        }*/
         }
 
         void OnReceivedPongMessage(TransportMessages.PongMessage pongMessage)
