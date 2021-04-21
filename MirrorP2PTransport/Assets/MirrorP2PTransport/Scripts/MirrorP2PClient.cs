@@ -58,7 +58,7 @@ namespace Mirror.WebRTC
 
         void Disconnect()
         {
-            if (!this.IsConnected()) return;
+            if (this.connection == default) return;
 
             this.connection.Disconnect();
         }
@@ -72,7 +72,7 @@ namespace Mirror.WebRTC
                 return false;
             }
 
-            this.connection.SendMessage(data);
+            this.connection.SendMessage(DataChannelLabelType.Mirror.ToString(), data);
 
             return true;
         }
@@ -87,7 +87,7 @@ namespace Mirror.WebRTC
         public bool IsConnected()
         {
             if (this.connection == default) return false;
-            if (!this.connection.IsConnected()) return false;
+            if (!this.connection.IsConnectedAllDataChannel()) return false;
 
             return true;
         }

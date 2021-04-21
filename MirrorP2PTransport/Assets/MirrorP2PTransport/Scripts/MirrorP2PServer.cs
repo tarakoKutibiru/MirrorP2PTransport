@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Timers;
 
 namespace Mirror.WebRTC
@@ -62,7 +63,7 @@ namespace Mirror.WebRTC
                 connection.onDisconnected += this.OnDisconnected;
                 connection.onMessage += this.OnMessage;
 
-                var dataChannelLabels = new string[]
+                var dataChannelLabels = new List<string>
                 {
                     DataChannelLabelType.Mirror.ToString(),
                     DataChannelLabelType.TranportInternal.ToString(),
@@ -73,13 +74,12 @@ namespace Mirror.WebRTC
             }
             else
             {
-                var dataChannelLabels = new string[]
+                var dataChannelLabels = new List<string>
                 {
                     DataChannelLabelType.Mirror.ToString(),
                     DataChannelLabelType.TranportInternal.ToString(),
                 };
-
-                this.connection.Connect(dataChannelLabels);
+                connection.Connect(dataChannelLabels);
             }
         }
 

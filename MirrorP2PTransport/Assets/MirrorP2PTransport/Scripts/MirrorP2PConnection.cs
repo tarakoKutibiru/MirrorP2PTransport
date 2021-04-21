@@ -23,7 +23,7 @@ namespace Mirror.WebRTC
         string signalingURL;
         string signalingKey;
         string roomId;
-        string[] dataChannelLabel;
+        List<string> dataChannelLabels;
 
         AyameSignaling signaling = default;
         RTCConfiguration rtcConfiguration = default;
@@ -46,7 +46,7 @@ namespace Mirror.WebRTC
             this.roomId = roomId;
         }
 
-        public void Connect(string[] dataChannnelLabel = default)
+        public void Connect(List<string> dataChannnelLabel = default)
         {
             if (this.state == State.Running) return;
             this.state = State.Running;
@@ -59,7 +59,7 @@ namespace Mirror.WebRTC
 
             this.rtcConfiguration = new RTCConfiguration();
 
-            this.dataChannelLabel = dataChannnelLabel;
+            this.dataChannelLabels = dataChannnelLabel;
 
             this.signaling.Start();
         }
@@ -76,12 +76,14 @@ namespace Mirror.WebRTC
             this.peerConnections.Clear();
             this.mapPeerAndChannelDictionary.Clear();
 
-            this.dataChannelLabel = default;
+            this.dataChannelLabels = default;
         }
 
         public bool IsConnectedAllDataChannel()
         {
-            foreach (var label in this.dataChannelLabel)
+            if (this.dataChannelLabels == default) return false;
+
+            foreach (var label in this.dataChannelLabels)
             {
                 if (!this.IsConnectedDataChannel(label)) return false;
             }
@@ -123,6 +125,9 @@ namespace Mirror.WebRTC
 
         void OnConnectedDataChannel(RTCDataChannel dataChannel)
         {
+            if (this.dataChannelLabels == default) this.dataChannelLabels = new List<string>();
+            this.dataChannelLabels.Add(dataChannel.Label);
+
             if (this.IsConnectedAllDataChannel())
             {
                 this.onConnected?.Invoke();
@@ -241,15 +246,18 @@ namespace Mirror.WebRTC
         {
             var pc = new RTCPeerConnection(ref this.rtcConfiguration);
 
-            foreach (var label in this.dataChannelLabel)
+            if (this.dataChannelLabels != default)
             {
-                RTCDataChannelInit dataChannelInit = new RTCDataChannelInit();
-                dataChannelInit.ordered = true;
+                foreach (var label in this.dataChannelLabels)
+                {
+                    RTCDataChannelInit dataChannelInit = new RTCDataChannelInit();
+                    dataChannelInit.ordered = true;
 
-                RTCDataChannel dataChannel = pc.CreateDataChannel(label, dataChannelInit);
-                dataChannel.OnOpen += () => this.OnOpenChannel(connectionId, dataChannel);
-                dataChannel.OnMessage += bytes => this.OnMessage(dataChannel, bytes);
-                dataChannel.OnClose += () => this.OnCloseChannel(connectionId, dataChannel);
+                    RTCDataChannel dataChannel = pc.CreateDataChannel(label, dataChannelInit);
+                    dataChannel.OnOpen += () => this.OnOpenChannel(connectionId, dataChannel);
+                    dataChannel.OnMessage += bytes => this.OnMessage(dataChannel, bytes);
+                    dataChannel.OnClose += () => this.OnCloseChannel(connectionId, dataChannel);
+                }
             }
 
             pc.OnDataChannel = channel => this.OnDataChannel(connectionId, channel);
