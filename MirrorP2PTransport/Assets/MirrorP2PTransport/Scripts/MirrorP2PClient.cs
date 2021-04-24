@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Mirror.WebRTC
 {
@@ -39,6 +40,11 @@ namespace Mirror.WebRTC
         {
             if (this.IsConnected()) return;
 
+            var dataChannelLabels = new List<string>
+                {
+                    DataChannelLabelType.TranportInternal.ToString(),
+                };
+
             if (this.connection == default)
             {
                 var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.roomId);
@@ -46,13 +52,13 @@ namespace Mirror.WebRTC
                 connection.onDisconnected += this.OnDisconnected;
                 connection.onMessage += this.OnMessage;
 
-                connection.Connect();
+                connection.Connect(dataChannelLabels);
 
                 this.connection = connection;
             }
             else
             {
-                this.connection.Connect();
+                this.connection.Connect(dataChannelLabels);
             }
         }
 

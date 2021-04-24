@@ -171,6 +171,7 @@ namespace Mirror.WebRTC
                             DescData descData = new DescData();
                             descData.connectionId = this.m_acceptMessage.connectionId;
                             descData.sdp = offerMessage.sdp;
+                            descData.type = offerMessage.type;
 
                             this.OnOffer?.Invoke(this, descData);
 
@@ -183,6 +184,7 @@ namespace Mirror.WebRTC
                             DescData descData = new DescData();
                             descData.connectionId = this.m_acceptMessage.connectionId;
                             descData.sdp = answerMessage.sdp;
+                            descData.type = answerMessage.type;
 
                             this.OnAnswer?.Invoke(this, descData);
 

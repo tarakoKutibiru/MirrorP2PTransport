@@ -66,6 +66,8 @@ namespace Mirror.WebRTC
 
         public void Disconnect()
         {
+            UnityEngine.Debug.Log("Disconnect:hoge");
+
             if (this.state == State.Stop) return;
             this.state = State.Stop;
 
@@ -82,6 +84,9 @@ namespace Mirror.WebRTC
         public bool IsConnectedAllDataChannel()
         {
             if (this.dataChannelLabels == default) return false;
+
+            // FIXME:
+            return 3 <= this.dataChannelLabels.Count;
 
             foreach (var label in this.dataChannelLabels)
             {
@@ -244,7 +249,7 @@ namespace Mirror.WebRTC
 
         RTCPeerConnection CreatePeerConnection(string connectionId, RTCConfiguration rtcConfiguration)
         {
-            var pc = new RTCPeerConnection(ref this.rtcConfiguration);
+            var pc = new RTCPeerConnection(ref rtcConfiguration);
 
             if (this.dataChannelLabels != default)
             {
@@ -265,8 +270,11 @@ namespace Mirror.WebRTC
             {
                 this.signaling?.SendCandidate(connectionId, candidate);
             };
+
             pc.OnIceConnectionChange = state =>
             {
+                UnityEngine.Debug.Log($"OnIceConnectionChange: {state.ToString()}");
+                return;
                 if (state != RTCIceConnectionState.Disconnected) return;
                 pc.Close();
                 this.peerConnections.Remove(connectionId);

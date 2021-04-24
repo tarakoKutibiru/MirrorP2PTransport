@@ -66,7 +66,6 @@ namespace Mirror.WebRTC
                 var dataChannelLabels = new List<string>
                 {
                     DataChannelLabelType.Mirror.ToString(),
-                    DataChannelLabelType.TranportInternal.ToString(),
                 };
                 connection.Connect(dataChannelLabels);
 
@@ -77,7 +76,6 @@ namespace Mirror.WebRTC
                 var dataChannelLabels = new List<string>
                 {
                     DataChannelLabelType.Mirror.ToString(),
-                    DataChannelLabelType.TranportInternal.ToString(),
                 };
                 connection.Connect(dataChannelLabels);
             }
@@ -140,6 +138,8 @@ namespace Mirror.WebRTC
 
         void OnConnected()
         {
+            UnityEngine.Debug.Log($"Server OnConnected {MirrorP2PServer.connectionId}");
+
             this.OnConnectedAction?.Invoke(MirrorP2PServer.connectionId);
         }
 
