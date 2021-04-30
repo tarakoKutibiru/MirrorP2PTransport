@@ -214,10 +214,9 @@ namespace Mirror.WebRTC
             var pc = this.CreatePeerConnection(connectionId, rtcConfiguration);
             this.peerConnection = pc;
 
-            RTCOfferOptions options = new RTCOfferOptions();
+            var options = new RTCOfferAnswerOptions();
             options.iceRestart = false;
-            options.offerToReceiveAudio = false;
-            options.offerToReceiveVideo = false;
+            options.voiceActivityDetection = false;
 
             var offer = pc.CreateOffer(ref options);
             await offer;
@@ -251,7 +250,9 @@ namespace Mirror.WebRTC
             await remoteDescription;
             if (remoteDescription.IsError) return false;
 
-            RTCAnswerOptions options = new RTCAnswerOptions();
+            var options = new RTCOfferAnswerOptions();
+            options.iceRestart = false;
+            options.voiceActivityDetection = false;
             var answer = pc.CreateAnswer(ref options);
             await answer;
 
