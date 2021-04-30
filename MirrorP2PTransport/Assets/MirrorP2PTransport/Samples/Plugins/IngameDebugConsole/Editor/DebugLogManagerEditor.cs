@@ -7,6 +7,9 @@ namespace IngameDebugConsole
 	{
 		private SerializedProperty singleton;
 		private SerializedProperty minimumHeight;
+		private SerializedProperty enableHorizontalResizing;
+		private SerializedProperty resizeFromRight;
+		private SerializedProperty minimumWidth;
 		private SerializedProperty enablePopup;
 		private SerializedProperty startInPopupMode;
 		private SerializedProperty startMinimized;
@@ -24,11 +27,18 @@ namespace IngameDebugConsole
 		{
 			singleton = serializedObject.FindProperty( "singleton" );
 			minimumHeight = serializedObject.FindProperty( "minimumHeight" );
+			enableHorizontalResizing = serializedObject.FindProperty( "enableHorizontalResizing" );
+			resizeFromRight = serializedObject.FindProperty( "resizeFromRight" );
+			minimumWidth = serializedObject.FindProperty( "minimumWidth" );
 			enablePopup = serializedObject.FindProperty( "enablePopup" );
 			startInPopupMode = serializedObject.FindProperty( "startInPopupMode" );
 			startMinimized = serializedObject.FindProperty( "startMinimized" );
 			toggleWithKey = serializedObject.FindProperty( "toggleWithKey" );
+#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
+			toggleKey = serializedObject.FindProperty( "toggleBinding" );
+#else
 			toggleKey = serializedObject.FindProperty( "toggleKey" );
+#endif
 			enableSearchbar = serializedObject.FindProperty( "enableSearchbar" );
 			topSearchbarMinWidth = serializedObject.FindProperty( "topSearchbarMinWidth" );
 			clearCommandAfterExecution = serializedObject.FindProperty( "clearCommandAfterExecution" );
@@ -44,28 +54,33 @@ namespace IngameDebugConsole
 
 			EditorGUILayout.PropertyField( singleton );
 			EditorGUILayout.PropertyField( minimumHeight );
-			EditorGUILayout.PropertyField( enablePopup );
 
+			EditorGUILayout.PropertyField( enableHorizontalResizing );
+			if( enableHorizontalResizing.boolValue )
+			{
+				DrawSubProperty( resizeFromRight );
+				DrawSubProperty( minimumWidth );
+			}
+
+			EditorGUILayout.PropertyField( enablePopup );
 			if( enablePopup.boolValue )
 				DrawSubProperty( startInPopupMode );
 			else
 				DrawSubProperty( startMinimized );
 
 			EditorGUILayout.PropertyField( toggleWithKey );
-
 			if( toggleWithKey.boolValue )
 				DrawSubProperty( toggleKey );
 
 			EditorGUILayout.PropertyField( enableSearchbar );
-
 			if( enableSearchbar.boolValue )
 				DrawSubProperty( topSearchbarMinWidth );
 
 			EditorGUILayout.PropertyField( clearCommandAfterExecution );
 			EditorGUILayout.PropertyField( commandHistorySize );
 			EditorGUILayout.PropertyField( showCommandSuggestions );
-			EditorGUILayout.PropertyField( receiveLogcatLogsInAndroid );
 
+			EditorGUILayout.PropertyField( receiveLogcatLogsInAndroid );
 			if( receiveLogcatLogsInAndroid.boolValue )
 				DrawSubProperty( logcatArguments );
 
