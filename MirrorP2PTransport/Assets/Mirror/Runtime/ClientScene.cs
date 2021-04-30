@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -136,6 +136,7 @@ namespace Mirror
 
             if (logger.LogEnabled()) logger.Log("ClientScene.AddPlayer() called with connection [" + readyConnection + "]");
 
+            UnityEngine.Debug.Log("new AddPlayerMessage()");
             readyConnection.Send(new AddPlayerMessage());
             return true;
         }

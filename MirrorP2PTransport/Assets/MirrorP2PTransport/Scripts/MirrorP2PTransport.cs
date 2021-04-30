@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Mirror.WebRTC
 {
@@ -14,7 +15,11 @@ namespace Mirror.WebRTC
 
         public override bool Available()
         {
+#if UNITY_EDITOR || UNITY_IOS || UNITY_STANDALONE
             return true;
+#else
+            return false;
+#endif
         }
         public override int GetMaxPacketSize(int channelId = 0)
         {
@@ -23,7 +28,12 @@ namespace Mirror.WebRTC
 
         protected virtual void Awake()
         {
-            this.client = new MirrorP2PClient();
+            // tell MirrorP2PTransport to use Unity's Debug.Log
+            Telepathy.Logger.Log = Debug.Log;
+            Telepathy.Logger.LogWarning = Debug.LogWarning;
+            Telepathy.Logger.LogError = Debug.LogError;
+
+            this.client = new MirrorP2PClient(signalingURL: this.signalingURL, signalingKey: this.signalingKey);
             this.server = new MirrorP2PServer();
 
             this.client.OnReceivedDataAction += (data, channelId) => { this.OnClientDataReceived?.Invoke(new ArraySegment<byte>(data), channelId); };
@@ -35,6 +45,8 @@ namespace Mirror.WebRTC
             this.server.OnDisconnectedAction += (connectionid) => { this.OnServerDisconnected?.Invoke(connectionid); };
 
             Unity.WebRTC.WebRTC.Initialize(Unity.WebRTC.EncoderType.Software);
+
+            Debug.Log("MirrorP2PTransport initialized!");
         }
 
         private void Start()
@@ -49,7 +61,7 @@ namespace Mirror.WebRTC
 
         public override void Shutdown()
         {
-            this.client.Disconnect();
+            this.client.Stop();
             this.server.Stop();
         }
 
@@ -57,17 +69,21 @@ namespace Mirror.WebRTC
 
         public override bool ClientConnected()
         {
-            return this.client.Connected();
+            this.client.RoomId = this.roomId;
+            this.client.Run();
+
+            return true;
         }
 
         public override void ClientConnect(string hostname)
         {
-            this.client.Connect(this.signalingURL, this.signalingKey, this.roomId);
+            this.client.RoomId = this.roomId;
+            this.client.Run();
         }
 
         public override void ClientDisconnect()
         {
-            this.client.Disconnect();
+            this.client.Stop();
         }
 
         public override bool ClientSend(int channelId, ArraySegment<byte> segment)
@@ -82,7 +98,7 @@ namespace Mirror.WebRTC
         #region Server
         public override bool ServerActive()
         {
-            return this.server.IsAlive();
+            return this.server.IsRunning();
         }
 
         public override void ServerStart()
