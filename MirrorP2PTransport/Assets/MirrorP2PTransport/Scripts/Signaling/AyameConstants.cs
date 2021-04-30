@@ -16,12 +16,16 @@ namespace Ayame.Signaling
         public bool isExistClient;
         public bool isExistUser;
 
-        public RTCIceServer[] ToRTCIceServers()
+        public RTCIceServer[] ToRTCIceServers(RTCIceServer[] iceServers)
         {
-            RTCIceServer[] servers = new RTCIceServer[this.iceServers.Count];
+            RTCIceServer[] servers = new RTCIceServer[this.iceServers.Count + iceServers.Length];
             for (int i = 0; i < this.iceServers.Count; i++)
             {
                 servers[i] = this.iceServers[i].ToRTCIceServer();
+            }
+            for (int i = 0; i < iceServers.Length; i++)
+            {
+                servers[this.iceServers.Count + 0] = iceServers[i];
             }
 
             return servers;

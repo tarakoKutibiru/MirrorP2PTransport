@@ -64,6 +64,7 @@ namespace Mirror.WebRTC
             this.signaling.OnIceCandidate += OnIceCandidate;
 
             this.rtcConfiguration = new RTCConfiguration();
+            this.rtcConfiguration.iceServers = new[] { new RTCIceServer { urls = new[] { "stun:stun.l.google.com:19302" } } };
 
             this.signaling.Start();
         }
@@ -199,7 +200,8 @@ namespace Mirror.WebRTC
         void OnAccept(AyameSignaling signaling)
         {
             AcceptMessage acceptMessage = signaling.m_acceptMessage;
-            this.rtcConfiguration.iceServers = acceptMessage.ToRTCIceServers();
+
+            this.rtcConfiguration.iceServers = acceptMessage.ToRTCIceServers(this.rtcConfiguration.iceServers);
 
             bool shouldSendOffer = acceptMessage.isExistClient;
 
