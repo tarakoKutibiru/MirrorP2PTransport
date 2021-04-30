@@ -288,7 +288,7 @@ namespace Mirror.WebRTC
 
             UnityEngine.Debug.Log($"OnIceCandidate: candidate {option.candidate}");
 
-            this.peerConnection.AddIceCandidate(iceCandidate);
+            this.peerConnection?.AddIceCandidate(iceCandidate);
         }
 
         RTCPeerConnection CreatePeerConnection(string connectionId, RTCConfiguration rtcConfiguration)
