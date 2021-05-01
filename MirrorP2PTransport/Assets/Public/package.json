@@ -6,8 +6,7 @@
     "unity": "2019.4",
     "unityRelease": "0f1",
     "dependencies": {
-        "com.unity.webrtc": "2.4.0-exp.1",
-        "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask"
+        "com.unity.webrtc": "2.4.0-exp.1"
     },
     "author": {
         "name": "tarakoKutibiru",
