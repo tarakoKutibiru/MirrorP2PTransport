@@ -1,0 +1,15 @@
+{
+    "name": "com.tarakokutibiru.mirror.p2p.transport",
+    "version": "0.0.1",
+    "displayName": "MirrorP2PTransport",
+    "description": "WebRTC dataChannel base transport for Mirror.",
+    "unity": "2019.4",
+    "unityRelease": "0f1",
+    "dependencies": {
+        "com.unity.webrtc": "2.4.0-exp.1"
+    },
+    "author": {
+        "name": "tarakoKutibiru",
+        "url": "https://github.com/tarakoKutibiru"
+    }
+}
