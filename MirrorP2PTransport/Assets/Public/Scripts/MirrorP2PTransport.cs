@@ -8,7 +8,7 @@ namespace Mirror.WebRTC
     {
         public string signalingURL = null;
         public string signalingKey = null;
-        public string roomId = null;
+        public string roomId       = null;
 
         MirrorP2PClient client = null;
         MirrorP2PServer server = null;
@@ -28,20 +28,15 @@ namespace Mirror.WebRTC
 
         protected virtual void Awake()
         {
-            // tell MirrorP2PTransport to use Unity's Debug.Log
-            Telepathy.Logger.Log = Debug.Log;
-            Telepathy.Logger.LogWarning = Debug.LogWarning;
-            Telepathy.Logger.LogError = Debug.LogError;
-
             this.client = new MirrorP2PClient(signalingURL: this.signalingURL, signalingKey: this.signalingKey);
             this.server = new MirrorP2PServer();
 
             this.client.OnReceivedDataAction += (data, channelId) => { this.OnClientDataReceived?.Invoke(new ArraySegment<byte>(data), channelId); };
-            this.client.OnConnectedAction += () => { this.OnClientConnected?.Invoke(); };
+            this.client.OnConnectedAction    += () => { this.OnClientConnected?.Invoke(); };
             this.client.OnDisconnectedAction += () => { this.OnClientDisconnected?.Invoke(); };
 
             this.server.OnReceivedDataAction += (connectionId, data, channelId) => { this.OnServerDataReceived?.Invoke(connectionId, new ArraySegment<byte>(data), channelId); };
-            this.server.OnConnectedAction += (connectionid) => { this.OnServerConnected?.Invoke(connectionid); };
+            this.server.OnConnectedAction    += (connectionid) => { this.OnServerConnected?.Invoke(connectionid); };
             this.server.OnDisconnectedAction += (connectionid) => { this.OnServerDisconnected?.Invoke(connectionid); };
 
             Unity.WebRTC.WebRTC.Initialize(Unity.WebRTC.EncoderType.Software);
