@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿#if MIRROR_WEBRTC
+
+using System.Collections.Generic;
 using Unity.WebRTC;
 
 namespace Ayame.Signaling
@@ -90,3 +92,5 @@ namespace Ayame.Signaling
         public string type = "pong";
     }
 }
+
+#endif

@@ -1,4 +1,6 @@
-﻿using Ayame.Signaling;
+﻿#if MIRROR_WEBRTC
+
+using Ayame.Signaling;
 using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
@@ -382,3 +384,5 @@ namespace Mirror.WebRTC
 
     #endregion
 }
+
+#endif

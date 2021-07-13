@@ -1,13 +1,16 @@
-﻿using UnityEngine;
+﻿
+#if MIRROR_WEBRTC
+
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace Mirror.WebRTC.Test.SendMessage
 {
     public class SendMessageTestManager : MonoBehaviour
     {
-        public InputField inputField = null;
+        public InputField         inputField         = null;
         public MirrorP2PTransport mirrorP2PTransport = null;
-        public NetworkManager networkManager = null;
+        public NetworkManager     networkManager     = null;
 
         private void Start()
         {
@@ -38,3 +41,5 @@ namespace Mirror.WebRTC.Test.SendMessage
         }
     }
 }
+
+#endif

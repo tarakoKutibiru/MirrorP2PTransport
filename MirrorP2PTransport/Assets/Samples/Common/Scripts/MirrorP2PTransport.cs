@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿#if MIRROR_WEBRTC
+
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace Mirror.WebRTC.Samples
@@ -20,3 +22,5 @@ namespace Mirror.WebRTC.Samples
         }
     }
 }
+
+#endif

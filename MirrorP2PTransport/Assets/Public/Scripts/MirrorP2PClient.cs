@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if MIRROR_WEBRTC
+
+using System;
 
 namespace Mirror.WebRTC
 {
@@ -113,3 +115,5 @@ namespace Mirror.WebRTC
         }
     }
 }
+
+#endif

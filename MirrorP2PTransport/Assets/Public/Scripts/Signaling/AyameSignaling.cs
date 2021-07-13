@@ -1,4 +1,6 @@
-﻿using Ayame.Signaling;
+﻿#if MIRROR_WEBRTC
+
+using Ayame.Signaling;
 using System;
 using System.Security.Authentication;
 using System.Text;
@@ -282,3 +284,5 @@ namespace Mirror.WebRTC
 
     }
 }
+
+#endif

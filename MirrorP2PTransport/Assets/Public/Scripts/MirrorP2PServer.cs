@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if MIRROR_WEBRTC
+
+using System;
 using System.Timers;
 
 namespace Mirror.WebRTC
@@ -190,3 +192,5 @@ namespace Mirror.WebRTC
         #endregion
     }
 }
+
+#endif

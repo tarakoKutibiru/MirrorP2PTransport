@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if MIRROR_WEBRTC
+
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -141,3 +143,5 @@ namespace Mirror.WebRTC
         #endregion
     }
 }
+
+#endif
