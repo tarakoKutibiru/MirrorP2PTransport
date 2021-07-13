@@ -15,6 +15,11 @@ mergeInto(LibraryManager.library,
         ShowTestJsHelloWorld();
     },
 
+    StartSignaling: function(signalingUrl, roomId, signalingKey)
+    {
+        StartSignaling(Pointer_stringify(signalingUrl), Pointer_stringify(roomId), Pointer_stringify(signalingKey));
+    },
+
     InjectionJs:function(url,id)
     {
         url=Pointer_stringify(url);

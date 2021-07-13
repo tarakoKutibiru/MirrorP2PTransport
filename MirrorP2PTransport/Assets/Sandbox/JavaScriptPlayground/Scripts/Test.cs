@@ -2,6 +2,8 @@
 using UnityEngine.Events;
 using System.Runtime.InteropServices;
 using System.IO;
+using Mirror.WebRTC.Samples;
+using UnityEngine.SceneManagement;
 
 namespace Sandbox.JavaScriptPlayground
 {
@@ -18,6 +20,9 @@ namespace Sandbox.JavaScriptPlayground
         private static extern void ShowTestJsHelloWorld();
 
         [DllImport("__Internal")]
+        private static extern void StartSignaling(string signalingUrl, string roomId, string signalingKey);
+
+        [DllImport("__Internal")]
         private static extern void InjectionJs(string url, string id);
 
         #endregion
@@ -27,9 +32,17 @@ namespace Sandbox.JavaScriptPlayground
         void Awake()
         {
             #if !UNITY_EDITOR && UNITY_WEBGL
-            var url = Path.Combine(Application.streamingAssetsPath, "Test.js");
-            var id  = "0";
-            InjectionJs(url, id);
+            {
+                var url = Path.Combine(Application.streamingAssetsPath, "Test.js");
+                var id  = "0";
+                InjectionJs(url, id);
+            }
+
+            {
+                var url = "https://cdn.jsdelivr.net/npm/@open-ayame/ayame-web-sdk@2020.3.0/dist/ayame.js";
+                var id  = "1";
+                InjectionJs(url, id);
+            }
             #endif
         }
 
@@ -64,6 +77,14 @@ namespace Sandbox.JavaScriptPlayground
             }
 
             GUILayout.FlexibleSpace();
+
+            if (this.OnButtonGUI("Start Signaling"))
+            {
+                var settings = Resources.Load<AyameSignalingSettings>("AyameSignalingSettings");
+
+                StartSignaling(settings.signalingUrl, settings.roomBaseId + "_" + SceneManager.GetActiveScene().name, settings.signalingKey);
+            }
+
             GUILayout.EndVertical();
 
             GUILayout.EndArea();
