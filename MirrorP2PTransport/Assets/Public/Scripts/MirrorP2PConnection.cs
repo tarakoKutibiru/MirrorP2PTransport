@@ -14,26 +14,26 @@ namespace Mirror.WebRTC
         public delegate void OnConnectedHandler();
         public delegate void OnDisconnectedHandler();
 
-        public event OnMessageHandler onMessage;
-        public event OnConnectedHandler onConnected;
+        public event OnMessageHandler      onMessage;
+        public event OnConnectedHandler    onConnected;
         public event OnDisconnectedHandler onDisconnected;
 
-        static readonly float interval = 5.0f;
+        static readonly float  interval         = 5.0f;
         static readonly string dataChannelLabel = "Mirror";
 
         string signalingURL;
         string signalingKey;
         string roomId;
 
-        AyameSignaling signaling = default;
+        AyameSignaling   signaling        = default;
         RTCConfiguration rtcConfiguration = default;
 
-        RTCPeerConnection peerConnection = default;
-        RTCDataChannel myDataChannel = default;
-        RTCDataChannel otherDataChannel = default;
-        bool myDataChannelConencted = false;
-        bool otherDataChannelConnected = false;
-        DateTime lastMessagedTime = default;
+        RTCPeerConnection peerConnection            = default;
+        RTCDataChannel    myDataChannel             = default;
+        RTCDataChannel    otherDataChannel          = default;
+        bool              myDataChannelConencted    = false;
+        bool              otherDataChannelConnected = false;
+        DateTime          lastMessagedTime          = default;
 
         Dictionary<int, UniTaskCompletionSource<bool>> utcss = new Dictionary<int, UniTaskCompletionSource<bool>>();
 
@@ -49,7 +49,7 @@ namespace Mirror.WebRTC
         {
             this.signalingKey = signalingKey;
             this.signalingURL = signalingURL;
-            this.roomId = roomId;
+            this.roomId       = roomId;
         }
 
         public void Connect()
@@ -57,13 +57,13 @@ namespace Mirror.WebRTC
             if (this.state == State.Running) return;
             this.state = State.Running;
 
-            this.signaling = new AyameSignaling(this.signalingURL, this.signalingKey, this.roomId, MirrorP2PConnection.interval);
-            this.signaling.OnAccept += OnAccept;
-            this.signaling.OnAnswer += OnAnswer;
-            this.signaling.OnOffer += OnOffer;
+            this.signaling                 = new AyameSignaling(this.signalingURL, this.signalingKey, this.roomId, MirrorP2PConnection.interval);
+            this.signaling.OnAccept       += OnAccept;
+            this.signaling.OnAnswer       += OnAnswer;
+            this.signaling.OnOffer        += OnOffer;
             this.signaling.OnIceCandidate += OnIceCandidate;
 
-            this.rtcConfiguration = new RTCConfiguration();
+            this.rtcConfiguration            = new RTCConfiguration();
             this.rtcConfiguration.iceServers = new[] { new RTCIceServer { urls = new[] { "stun:stun.l.google.com:19302" } } };
 
             this.signaling.Start();
@@ -75,11 +75,11 @@ namespace Mirror.WebRTC
             this.state = State.Stop;
 
             this.signaling?.Stop();
-            this.signaling = default;
+            this.signaling        = default;
             this.rtcConfiguration = default;
 
-            this.peerConnection = default;
-            this.myDataChannel = default;
+            this.peerConnection   = default;
+            this.myDataChannel    = default;
             this.otherDataChannel = default;
         }
 
@@ -140,35 +140,35 @@ namespace Mirror.WebRTC
             switch (mirrorP2PMessage.MessageType)
             {
                 case MirrorP2PMessage.Type.Ping:
-                    {
-                        var message = MirrorP2PMessage.CreatePongMessage(mirrorP2PMessage.Uid);
-                        dataChannel.Send(message.ToPayload());
+                {
+                    var message = MirrorP2PMessage.CreatePongMessage(mirrorP2PMessage.Uid);
+                    dataChannel.Send(message.ToPayload());
 
-                        break;
-                    }
+                    break;
+                }
 
                 case MirrorP2PMessage.Type.ConnectedConfirmResponce:
                 case MirrorP2PMessage.Type.Pong:
-                    {
-                        if (!this.utcss.ContainsKey(mirrorP2PMessage.Uid)) return;
-                        this.utcss[mirrorP2PMessage.Uid].TrySetResult(true);
-                        break;
-                    }
+                {
+                    if (!this.utcss.ContainsKey(mirrorP2PMessage.Uid)) return;
+                    this.utcss[mirrorP2PMessage.Uid].TrySetResult(true);
+                    break;
+                }
 
                 case MirrorP2PMessage.Type.ConnectedConfirmRequest:
-                    {
-                        var message = MirrorP2PMessage.CreateConnectedConfirmResponce(mirrorP2PMessage.Uid);
-                        dataChannel.Send(message.ToPayload());
-                        this.otherDataChannelConnected = true;
-                        if (this.myDataChannelConencted) this.OnConnectedAllDataChannel();
-                        break;
-                    }
+                {
+                    var message = MirrorP2PMessage.CreateConnectedConfirmResponce(mirrorP2PMessage.Uid);
+                    dataChannel.Send(message.ToPayload());
+                    this.otherDataChannelConnected = true;
+                    if (this.myDataChannelConencted) this.OnConnectedAllDataChannel();
+                    break;
+                }
 
                 case MirrorP2PMessage.Type.RawData:
-                    {
-                        this.onMessage?.Invoke(dataChannel.Label, mirrorP2PMessage.rawData);
-                        break;
-                    }
+                {
+                    this.onMessage?.Invoke(dataChannel.Label, mirrorP2PMessage.rawData);
+                    break;
+                }
 
                 default:
                     break;
@@ -217,15 +217,15 @@ namespace Mirror.WebRTC
             this.peerConnection = pc;
 
             var options = new RTCOfferAnswerOptions();
-            options.iceRestart = false;
+            options.iceRestart             = false;
             options.voiceActivityDetection = false;
 
-            var offer = pc.CreateOffer(ref options);
+            var   offer = pc.CreateOffer(ref options);
             await offer;
             if (offer.IsError) return false;
 
-            var desc = offer.Desc;
-            var localDescription = pc.SetLocalDescription(ref desc);
+            var   desc             = offer.Desc;
+            var   localDescription = pc.SetLocalDescription(ref desc);
             await localDescription;
             if (localDescription.IsError) return false;
 
@@ -238,7 +238,7 @@ namespace Mirror.WebRTC
         {
             RTCSessionDescription description = new RTCSessionDescription();
             description.type = RTCSdpType.Offer;
-            description.sdp = descData.sdp;
+            description.sdp  = descData.sdp;
 
             this.SendAnswer(descData.connectionId, this.rtcConfiguration, description).Forget();
         }
@@ -248,18 +248,18 @@ namespace Mirror.WebRTC
             var pc = this.CreatePeerConnection(connectionId, rtcConfiguration);
             this.peerConnection = pc;
 
-            var remoteDescription = pc.SetRemoteDescription(ref rtcSessionDescription);
+            var   remoteDescription = pc.SetRemoteDescription(ref rtcSessionDescription);
             await remoteDescription;
             if (remoteDescription.IsError) return false;
 
             var options = new RTCOfferAnswerOptions();
-            options.iceRestart = false;
+            options.iceRestart             = false;
             options.voiceActivityDetection = false;
-            var answer = pc.CreateAnswer(ref options);
+            var   answer = pc.CreateAnswer(ref options);
             await answer;
 
-            var desc = answer.Desc;
-            var localDescription = pc.SetLocalDescription(ref desc);
+            var   desc             = answer.Desc;
+            var   localDescription = pc.SetLocalDescription(ref desc);
             await localDescription;
             if (localDescription.IsError) return false;
 
@@ -272,7 +272,7 @@ namespace Mirror.WebRTC
         {
             RTCSessionDescription description = new RTCSessionDescription();
             description.type = RTCSdpType.Answer;
-            description.sdp = descData.sdp;
+            description.sdp  = descData.sdp;
 
             this.peerConnection.SetRemoteDescription(ref description);
         }
@@ -280,8 +280,8 @@ namespace Mirror.WebRTC
         void OnIceCandidate(ISignaling signaling, CandidateData candidateData)
         {
             RTCIceCandidateInit option = new RTCIceCandidateInit();
-            option.candidate = candidateData.candidate;
-            option.sdpMid = candidateData.sdpMid;
+            option.candidate     = candidateData.candidate;
+            option.sdpMid        = candidateData.sdpMid;
             option.sdpMLineIndex = candidateData.sdpMLineIndex;
 
             RTCIceCandidate iceCandidate = new RTCIceCandidate(option);
@@ -299,17 +299,17 @@ namespace Mirror.WebRTC
             dataChannelInit.ordered = true;
 
             RTCDataChannel dataChannel = pc.CreateDataChannel(MirrorP2PConnection.dataChannelLabel, dataChannelInit);
-            dataChannel.OnOpen += () => this.OnOpenChannel(this.signaling.ClientId, dataChannel);
+            dataChannel.OnOpen    += () => this.OnOpenChannel(this.signaling.ClientId, dataChannel);
             dataChannel.OnMessage += bytes => this.OnMessage(dataChannel, bytes);
-            dataChannel.OnClose += () =>
+            dataChannel.OnClose   += () =>
             {
-                this.myDataChannel = default;
+                this.myDataChannel          = default;
                 this.myDataChannelConencted = false;
 
                 this.OnDisconnectedDataChannel(dataChannel);
             };
 
-            pc.OnDataChannel = channel => this.OnDataChannel(connectionId, channel);
+            pc.OnDataChannel  = channel => this.OnDataChannel(connectionId, channel);
             pc.OnIceCandidate = candidate =>
             {
                 this.signaling?.SendCandidate(connectionId, candidate);
@@ -337,11 +337,11 @@ namespace Mirror.WebRTC
         {
             UnityEngine.Debug.Log($"OnDataChannel: {connectionId}");
 
-            this.otherDataChannel = dataChannel;
+            this.otherDataChannel  = dataChannel;
             dataChannel.OnMessage += bytes => this.OnMessage(dataChannel, bytes);
-            dataChannel.OnClose += () =>
+            dataChannel.OnClose   += () =>
             {
-                this.otherDataChannel = default;
+                this.otherDataChannel          = default;
                 this.otherDataChannelConnected = false;
 
                 this.OnDisconnectedDataChannel(dataChannel);
@@ -353,7 +353,7 @@ namespace Mirror.WebRTC
             UnityEngine.Debug.Log($"OnOpenChannnel: {connectionId}");
             this.myDataChannel = channel;
 
-            UniTask.Void(async () =>
+            UniTask.Void(async() =>
             {
                 bool result = false;
                 while (!result)
@@ -362,14 +362,14 @@ namespace Mirror.WebRTC
                     {
                         if (this.state != State.Running) break;
                         var message = MirrorP2PMessage.CreateConnectedConfirmRequest();
-                        var ct = new CancellationToken();
-                        result = await this.SendMessage(message, channel, ct);
+                        var ct      = new CancellationToken();
+                        result      = await this.SendMessage(message, channel, ct);
                         if (!result) continue;
 
                         this.myDataChannelConencted = true;
                         if (this.otherDataChannelConnected) this.OnConnectedAllDataChannel();
                     }
-                    catch (OperationCanceledException ex)
+                    catch(OperationCanceledException ex)
                     {
 
                     }

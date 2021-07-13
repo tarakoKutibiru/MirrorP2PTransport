@@ -4,9 +4,9 @@ namespace Mirror.WebRTC
 {
     public class MirrorP2PClient : Common
     {
-        public event Action<Exception> OnReceivedErrorAction;
+        public event Action<Exception>   OnReceivedErrorAction;
         public event Action<byte[], int> OnReceivedDataAction;
-        public Action OnConnectedAction = null;
+        public Action OnConnectedAction    = null;
         public Action OnDisconnectedAction = null;
 
         string signalingURL;
@@ -42,9 +42,9 @@ namespace Mirror.WebRTC
             if (this.connection == default)
             {
                 var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.roomId);
-                connection.onConnected += this.OnConnected;
+                connection.onConnected    += this.OnConnected;
                 connection.onDisconnected += this.OnDisconnected;
-                connection.onMessage += this.OnMessage;
+                connection.onMessage      += this.OnMessage;
 
                 connection.Connect();
 

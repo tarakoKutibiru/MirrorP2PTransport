@@ -10,11 +10,11 @@ namespace Ayame.Signaling
 
     public class AcceptMessage
     {
-        public string type = "accept";
-        public string connectionId;
+        public string          type = "accept";
+        public string          connectionId;
         public List<IceServer> iceServers;
-        public bool isExistClient;
-        public bool isExistUser;
+        public bool            isExistClient;
+        public bool            isExistUser;
 
         public RTCIceServer[] ToRTCIceServers(RTCIceServer[] iceServers)
         {
@@ -36,15 +36,15 @@ namespace Ayame.Signaling
     public class IceServer
     {
         public List<string> urls;
-        public string username;
-        public string credential;
+        public string       username;
+        public string       credential;
 
         public RTCIceServer ToRTCIceServer()
         {
             RTCIceServer rtcIceServer = new RTCIceServer();
             rtcIceServer.credential = this.credential;
-            rtcIceServer.username = this.username;
-            rtcIceServer.urls = this.urls.ToArray();
+            rtcIceServer.username   = this.username;
+            rtcIceServer.urls       = this.urls.ToArray();
 
             return rtcIceServer;
         }
@@ -74,7 +74,7 @@ namespace Ayame.Signaling
     public class CandidateMessage
     {
         public string type = "candidate";
-        public Ice ice;
+        public Ice    ice;
     }
 
     [System.Serializable]
@@ -82,7 +82,7 @@ namespace Ayame.Signaling
     {
         public string candidate;
         public string sdpMid;
-        public int sdpMLineIndex;
+        public int    sdpMLineIndex;
     }
 
     public class PongMessage

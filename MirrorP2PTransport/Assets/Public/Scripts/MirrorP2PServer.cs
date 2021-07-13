@@ -6,12 +6,12 @@ namespace Mirror.WebRTC
     public class MirrorP2PServer : Common
     {
         static readonly int connectionId = 1;
-        static readonly int channelId = 0;
+        static readonly int channelId    = 0;
 
-        public event Action<int> OnConnectedAction; // connectionId
+        public event Action<int>              OnConnectedAction; // connectionId
         public event Action<int, byte[], int> OnReceivedDataAction; // connectionId, data, channnelId
-        public event Action<int> OnDisconnectedAction; // connectionId
-        public event Action<int, Exception> OnReceivedErrorAction; // connectionId
+        public event Action<int>              OnDisconnectedAction; // connectionId
+        public event Action<int, Exception>   OnReceivedErrorAction; // connectionId
 
         string signalingURL;
         string signalingKey;
@@ -27,7 +27,7 @@ namespace Mirror.WebRTC
 
             this.signalingURL = signalingURL;
             this.signalingKey = signalingKey;
-            this.roomId = roomId;
+            this.roomId       = roomId;
 
             this.StartTimer();
 
@@ -58,9 +58,9 @@ namespace Mirror.WebRTC
             if (this.connection == default)
             {
                 var connection = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: roomId);
-                connection.onConnected += this.OnConnected;
+                connection.onConnected    += this.OnConnected;
                 connection.onDisconnected += this.OnDisconnected;
-                connection.onMessage += this.OnMessage;
+                connection.onMessage      += this.OnMessage;
 
                 connection.Connect();
 
@@ -104,25 +104,25 @@ namespace Mirror.WebRTC
             switch (dataChannelLabelType)
             {
                 case DataChannelLabelType.Mirror:
-                    {
-                        this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, bytes, MirrorP2PServer.channelId);
+                {
+                    this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, bytes, MirrorP2PServer.channelId);
 
-                        break;
-                    }
+                    break;
+                }
 
                 case DataChannelLabelType.TranportInternal:
-                    {
-                        // TODO:
-                        /*            string text = System.Text.Encoding.UTF8.GetString(bytes);
-            TransportMessages.Message message = JsonUtility.FromJson<TransportMessages.Message>(text);
-            if (!string.IsNullOrEmpty(message.type))
-            {
-                if (message.type == TransportMessages.PongMessage.type) this.OnReceivedPongMessage(JsonUtility.FromJson<TransportMessages.PongMessage>(text));
-                return;
-            }*/
+                {
+                    // TODO:
+                    /*            string text = System.Text.Encoding.UTF8.GetString(bytes);
+                       TransportMessages.Message message = JsonUtility.FromJson<TransportMessages.Message>(text);
+                       if (!string.IsNullOrEmpty(message.type))
+                       {
+                       if (message.type == TransportMessages.PongMessage.type) this.OnReceivedPongMessage(JsonUtility.FromJson<TransportMessages.PongMessage>(text));
+                       return;
+                       }*/
 
-                        break;
-                    }
+                    break;
+                }
             }
 
         }
@@ -150,7 +150,7 @@ namespace Mirror.WebRTC
 
         #region timer
 
-        Timer timer = default;
+        Timer    timer          = default;
         DateTime latestPingTime = default;
         DateTime latestPongTime = default;
 
@@ -158,7 +158,7 @@ namespace Mirror.WebRTC
         {
             if (this.timer == default)
             {
-                this.timer = new Timer(1000); // 1000 mili sec = 1 sec
+                this.timer          = new Timer(1000); // 1000 mili sec = 1 sec
                 this.timer.Elapsed += this.Update;
             }
 

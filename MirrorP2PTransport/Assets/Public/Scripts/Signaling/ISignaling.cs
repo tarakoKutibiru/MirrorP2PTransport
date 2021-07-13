@@ -11,8 +11,8 @@ namespace Mirror.WebRTC
         void Start();
         void Stop();
 
-        event OnOfferHandler OnOffer;
-        event OnAnswerHandler OnAnswer;
+        event OnOfferHandler        OnOffer;
+        event OnAnswerHandler       OnAnswer;
         event OnIceCandidateHandler OnIceCandidate;
 
         void SendOffer(string connectionId, RTCSessionDescription offer);
