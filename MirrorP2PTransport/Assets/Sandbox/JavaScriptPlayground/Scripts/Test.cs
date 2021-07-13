@@ -1,10 +1,14 @@
 ﻿using UnityEngine;
 using UnityEngine.Events;
+using System.Runtime.InteropServices;
 
 namespace Sandbox.JavaScriptPlayground
 {
     public class Test : MonoBehaviour
     {
+        [DllImport("__Internal")]
+        private static extern void HelloWorld();
+
         void OnGUI()
         {
             float margin = Screen.width / 100f;
@@ -13,7 +17,7 @@ namespace Sandbox.JavaScriptPlayground
             GUILayout.BeginVertical();
             GUILayout.FlexibleSpace();
 
-            this.OnButtonGUI("test", () => { Debug.Log("Test"); });
+            this.OnButtonGUI("test", () => { HelloWorld(); });
 
             GUILayout.FlexibleSpace();
             GUILayout.EndVertical();
