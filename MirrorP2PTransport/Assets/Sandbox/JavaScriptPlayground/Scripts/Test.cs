@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Events;
 using System.Runtime.InteropServices;
+using System.IO;
 
 namespace Sandbox.JavaScriptPlayground
 {
@@ -12,10 +13,27 @@ namespace Sandbox.JavaScriptPlayground
 
         [DllImport("__Internal")]
         private static extern void HelloWorldString(string str);
+
+        [DllImport("__Internal")]
+        private static extern void ShowTestJsHelloWorld();
+
+        [DllImport("__Internal")]
+        private static extern void InjectionJs(string url, string id);
+
         #endregion
 
         string message = "";
 
+        void Awake()
+        {
+            #if !UNITY_EDITOR && UNITY_WEBGL
+            var url = Path.Combine(Application.streamingAssetsPath, "Test.js");
+            var id  = "0";
+            InjectionJs(url, id);
+            #endif
+        }
+
+        #region View
         void OnGUI()
         {
             float margin = Screen.width / 100f;
@@ -27,6 +45,11 @@ namespace Sandbox.JavaScriptPlayground
             if (this.OnButtonGUI("HelloWolrd"))
             {
                 HelloWorld();
+            }
+
+            if (this.OnButtonGUI("ShowTestJsHelloWorld"))
+            {
+                ShowTestJsHelloWorld();
             }
 
             {
@@ -63,5 +86,6 @@ namespace Sandbox.JavaScriptPlayground
 
             return GUILayout.TextField(str, style, GUILayout.MinWidth(Screen.width - margin * 2f), GUILayout.MinHeight(mingHeight));
         }
+        #endregion
     }
 }
