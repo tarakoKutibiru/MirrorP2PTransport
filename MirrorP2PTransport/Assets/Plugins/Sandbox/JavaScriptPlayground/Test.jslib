@@ -20,6 +20,11 @@ mergeInto(LibraryManager.library,
         StartSignaling(Pointer_stringify(signalingUrl), Pointer_stringify(roomId), Pointer_stringify(signalingKey));
     },
 
+    AsyncAwaitTest: function()
+    {   
+        AsyncAwaitTest();
+    },
+
     InjectionJs:function(url,id)
     {
         url=Pointer_stringify(url);

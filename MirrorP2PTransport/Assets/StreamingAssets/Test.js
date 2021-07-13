@@ -29,3 +29,19 @@ function StartSignaling(signalingUrl, roomId, signalingKey) {
         dataChannel.send(data);
     };
 }
+
+function AsyncAwaitTest() {
+    const _sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const hoge = async () => {
+        console.log("b");
+        await _sleep(2000);
+        console.log("c");
+        return "d";
+    }
+
+    console.log("a");
+    const h = hoge();
+    console.log(h);
+    console.log("e");
+}

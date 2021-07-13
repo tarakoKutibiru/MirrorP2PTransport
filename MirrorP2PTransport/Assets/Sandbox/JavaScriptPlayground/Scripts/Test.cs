@@ -23,6 +23,9 @@ namespace Sandbox.JavaScriptPlayground
         private static extern void StartSignaling(string signalingUrl, string roomId, string signalingKey);
 
         [DllImport("__Internal")]
+        private static extern void AsyncAwaitTest();
+
+        [DllImport("__Internal")]
         private static extern void InjectionJs(string url, string id);
 
         #endregion
@@ -63,6 +66,11 @@ namespace Sandbox.JavaScriptPlayground
             if (this.OnButtonGUI("ShowTestJsHelloWorld"))
             {
                 ShowTestJsHelloWorld();
+            }
+
+            if (this.OnButtonGUI("AsyncAwaitTest"))
+            {
+                AsyncAwaitTest();
             }
 
             {
