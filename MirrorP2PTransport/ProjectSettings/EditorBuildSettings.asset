@@ -32,7 +32,10 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Samples/Tanks/Scenes/TanksScene.unity
     guid: 298940588f9ae614ba154a58e0cda19a
-  - enabled: 1
+  - enabled: 0
     path: Assets/Sandbox/JavaScriptPlayground/Scenes/JavaScriptPlaygroundScene.unity
     guid: 9a2bfdfcf8d2348219611624eedde08e
+  - enabled: 1
+    path: Assets/Sandbox/AyameDataChannelSample/Scenes/AyameDataChannelSample.unity
+    guid: c91f9e41b21064b6f84ebc71e709e6c1
   m_configObjects: {}
