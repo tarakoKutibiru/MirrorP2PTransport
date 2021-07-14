@@ -1,33 +1,48 @@
+let dataChannel = null;
 
 function ShowTestJsHelloWorld() {
     window.alert("Test.js: HelloWorld!!");
 }
 
 function StartSignaling(signalingUrl, roomId, signalingKey) {
-    let dataChannel = null;
-
     const options = Ayame.defaultOptions;
     options.signalingKey = signalingKey;
 
-    const startConn = async () => {
-        const conn = Ayame.connection(signalingUrl, roomId, options, true);
-        conn.on('open', async (e) => {
-            dataChannel = await conn.createDataChannel('datachannel');
-            if (dataChannel == null) {
-                console.log("dataChannel is nul");
+    const startConnection = async () => {
+        const connection = Ayame.connection(signalingUrl, roomId, options, true);
+        connection.on('open', async (e) => {
+            dataChannel = await connection.createDataChannel('datachannel');
+            if (dataChannel) {
+                dataChannel.onmessage = onMessage;
             }
-
-            dataChannel.onmessage = (e) => {
-                console.log('data received: ', e.data);
-            };
         });
-        await conn.connect(null);
+        connection.on('datachannel', (channel) => {
+            if (!dataChannel) {
+                dataChannel = channel;
+                dataChannel.onmessage = onMessage;
+            }
+        });
+        connection.on('disconnect', (e) => {
+            console.log(e);
+            dataChannel = null;
+        });
+        await connection.connect(null);
     };
-    startConn();
 
-    const sendData = (data) => {
-        dataChannel.send(data);
-    };
+    startConnection();
+};
+
+function SendData(data) {
+    if (!IsConnectedDataChannel()) return;
+    dataChannel.send(data);
+}
+
+function IsConnectedDataChannel() {
+    return dataChannel && dataChannel.readyState === 'open';
+}
+
+function onMessage(e) {
+    console.log('data received: ', e.data);
 }
 
 function AsyncAwaitTest() {
