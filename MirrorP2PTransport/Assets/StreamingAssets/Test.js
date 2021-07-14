@@ -1,4 +1,5 @@
 let dataChannel = null;
+// let unityInstance = UnityLoader.instantiate("unityContainer", "Build/build.json", { onProgress: UnityProgress });
 
 function ShowTestJsHelloWorld() {
     window.alert("Test.js: HelloWorld!!");
@@ -13,17 +14,20 @@ function StartSignaling(signalingUrl, roomId, signalingKey) {
         connection.on('open', async (e) => {
             dataChannel = await connection.createDataChannel('datachannel');
             if (dataChannel) {
+                OnConnected();
                 dataChannel.onmessage = onMessage;
             }
         });
         connection.on('datachannel', (channel) => {
             if (!dataChannel) {
+                OnConnected();
                 dataChannel = channel;
                 dataChannel.onmessage = onMessage;
             }
         });
         connection.on('disconnect', (e) => {
             console.log(e);
+            OnDisconnected();
             dataChannel = null;
         });
         await connection.connect(null);
@@ -41,8 +45,28 @@ function IsConnectedDataChannel() {
     return dataChannel && dataChannel.readyState === 'open';
 }
 
+function OnConnected() {
+    unityInstance.SendMessage(
+        'Test',
+        'OnEvent',
+        'OnConnected'
+    );
+}
+
+function OnDisconnected() {
+    unityInstance.SendMessage(
+        'Test',
+        'OnEvent',
+        'OnDisconnected'
+    );
+}
+
 function onMessage(e) {
-    console.log('data received: ', e.data);
+    unityInstance.SendMessage(
+        'Test',
+        'OnMessage',
+        e.data
+    );
 }
 
 function AsyncAwaitTest() {

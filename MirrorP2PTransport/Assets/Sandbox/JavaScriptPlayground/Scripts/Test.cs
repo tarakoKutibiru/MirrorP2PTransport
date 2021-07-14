@@ -36,6 +36,7 @@ namespace Sandbox.JavaScriptPlayground
         {
             #if !UNITY_EDITOR && UNITY_WEBGL
             {
+                // var url = "https://publicfilehost.web.app/Test.js";
                 var url = Path.Combine(Application.streamingAssetsPath, "Test.js");
                 var id  = "0";
                 InjectionJs(url, id);
@@ -114,6 +115,17 @@ namespace Sandbox.JavaScriptPlayground
             GUIStyle style      = new GUIStyle(GUI.skin.textField);
 
             return GUILayout.TextField(str, style, GUILayout.MinWidth(Screen.width - margin * 2f), GUILayout.MinHeight(mingHeight));
+        }
+        #endregion
+
+        #region WebRTC
+        public void OnEvent(string message)
+        {
+            Debug.Log(message);
+        }
+        public void OnMessage(string message)
+        {
+            Debug.Log(message);
         }
         #endregion
     }
