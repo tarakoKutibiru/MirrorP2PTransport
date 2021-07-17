@@ -36,6 +36,8 @@ namespace Mirror.WebRTC
             this.m_wsCloseEvent = new AutoResetEvent(false);
 
             this.clientId = RandomString(8);
+
+            Debug.Log($"###clientId: {this.clientId}");
         }
 
         string RandomString(int strLength)
@@ -56,6 +58,7 @@ namespace Mirror.WebRTC
         {
             if (this.m_running) return;
 
+            Debug.Log("###Start");
             this.m_running = true;
             m_signalingThread = new Thread(WSManage);
             m_signalingThread.Start();
@@ -64,9 +67,15 @@ namespace Mirror.WebRTC
         public void Stop()
         {
             m_running = false;
-            m_webSocket?.Close();
             m_signalingThread.Abort();
+
+            m_wsCloseEvent.Close();
+            m_wsCloseEvent = default;
+            m_webSocket.Close();
+
             m_signalingThread = default;
+
+            Debug.Log("WSStop");
         }
 
         public event OnAcceptHandler OnAccept;
@@ -127,6 +136,8 @@ namespace Mirror.WebRTC
 
         private void WSCreate()
         {
+            Debug.Log("###WSCreate");
+
             m_webSocket = new WebSocket(m_url);
             if (m_url.StartsWith("wss"))
             {
@@ -208,6 +219,7 @@ namespace Mirror.WebRTC
 
                     case "ping":
                         {
+                            if (this.m_running == false) return;
                             PongMessage pongMessage = new PongMessage();
                             this.WSSend(JsonUtility.ToJson(pongMessage));
 
@@ -255,7 +267,7 @@ namespace Mirror.WebRTC
         {
             Debug.LogError($"Signaling: WS connection closed, code: {e.Code}");
 
-            m_wsCloseEvent.Set();
+            m_wsCloseEvent?.Set();
             m_webSocket = null;
         }
 
