@@ -25,13 +25,11 @@ namespace Mirror.WebRTC
 
         public void Run()
         {
-            this.state = State.Runnning;
             this.Connect();
         }
 
         public void Stop()
         {
-            this.state = State.Stop;
             this.Disconnect();
         }
 
@@ -42,24 +40,26 @@ namespace Mirror.WebRTC
             if (this.connection == default)
             {
                 var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.roomId);
-                connection.onConnected += this.OnConnected;
-                connection.onDisconnected += this.OnDisconnected;
-                connection.onMessage += this.OnMessage;
-
+                connection.OnConnectedHandler += this.OnConnected;
+                connection.OnDisconnectedHandler += this.OnDisconnected;
+                connection.OnMessageHandler += this.OnMessage;
+                connection.OnRequestHandler += this.OnRequest;
                 connection.Connect();
-
                 this.connection = connection;
             }
             else
             {
                 this.connection.Connect();
             }
+
+            this.connectionStatus = ConnectionStatus.Connecting;
         }
 
         void Disconnect()
         {
             if (this.connection == default) return;
 
+            this.connectionStatus = ConnectionStatus.Disconnecting;
             this.connection.Disconnect();
         }
 
@@ -72,22 +72,39 @@ namespace Mirror.WebRTC
                 return false;
             }
 
-            this.connection.SendMessage(data);
+            this.connection.SendMessage(MirrorP2PMessage.CreateRawDataMessage(data));
 
             return true;
         }
 
-        protected void OnMessage(string dataChannelLabel, byte[] bytes)
+        void OnMessage(MirrorP2PMessage message)
         {
             if (this.state == State.Stop) return;
 
-            this.OnReceivedDataAction?.Invoke(bytes, 0);
+            this.OnReceivedDataAction?.Invoke(message.rawData, 0);
+        }
+
+        void OnRequest(MirrorP2PMessage message)
+        {
+            switch (message.MessageType)
+            {
+                case MirrorP2PMessage.Type.ConnectedConfirmRequest:
+                    {
+                        this.connectionStatus = ConnectionStatus.Connected;
+                        this.connection.SendResponce(MirrorP2PMessage.CreateConnectedConfirmResponce(message.Uid));
+                        this.OnConnectedAction?.Invoke();
+                        break;
+                    }
+
+                default:
+                    break;
+            }
         }
 
         public bool IsConnected()
         {
             if (this.connection == default) return false;
-            if (!this.connection.IsConnectedAllDataChannel()) return false;
+            if (!this.connection.IsConnected()) return false;
 
             return true;
         }
@@ -99,17 +116,10 @@ namespace Mirror.WebRTC
 
         protected void OnDisconnected()
         {
+            this.connectionStatus = ConnectionStatus.Disconnected;
             this.OnDisconnectedAction?.Invoke();
-
-            if (this.state == State.Runnning)
-            {
-                this.connection = default;
-                this.Connect();
-            }
-            else if (this.state == State.Stop)
-            {
-                this.connection = default;
-            }
+            this.connection = default;
         }
+
     }
 }

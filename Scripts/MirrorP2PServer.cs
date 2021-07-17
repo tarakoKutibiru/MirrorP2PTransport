@@ -1,5 +1,6 @@
-﻿using System;
-using System.Timers;
+﻿using Cysharp.Threading.Tasks;
+using System;
+using System.Threading;
 
 namespace Mirror.WebRTC
 {
@@ -29,16 +30,12 @@ namespace Mirror.WebRTC
             this.signalingKey = signalingKey;
             this.roomId = roomId;
 
-            this.StartTimer();
-
             this.Connect();
         }
 
         public void Stop()
         {
             if (this.state == State.Stop) return;
-
-            this.timer.Stop();
 
             this.state = State.Stop;
             this.connection.Disconnect();
@@ -48,7 +45,7 @@ namespace Mirror.WebRTC
         {
             if (!this.IsConnected()) return false;
 
-            this.connection.SendMessage(data);
+            this.connection.SendMessage(MirrorP2PMessage.CreateRawDataMessage(data));
 
             return true;
         }
@@ -58,9 +55,10 @@ namespace Mirror.WebRTC
             if (this.connection == default)
             {
                 var connection = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: roomId);
-                connection.onConnected += this.OnConnected;
-                connection.onDisconnected += this.OnDisconnected;
-                connection.onMessage += this.OnMessage;
+
+                connection.OnConnectedHandler += this.OnConnected;
+                connection.OnDisconnectedHandler += this.OnDisconnected;
+                connection.OnMessageHandler += this.OnMessage;
 
                 connection.Connect();
 
@@ -91,47 +89,31 @@ namespace Mirror.WebRTC
         public bool IsConnected()
         {
             if (this.connection == default) return false;
-            if (!this.connection.IsConnectedAllDataChannel()) return false;
+            if (!this.connection.IsConnected()) return false;
 
             return true;
         }
 
-        void OnMessage(string dataChannelLabel, byte[] bytes)
+        void OnMessage(MirrorP2PMessage message)
         {
-            DataChannelLabelType dataChannelLabelType;
-            if (!Enum.TryParse<DataChannelLabelType>(dataChannelLabel, out dataChannelLabelType)) return;
-
-            switch (dataChannelLabelType)
-            {
-                case DataChannelLabelType.Mirror:
-                    {
-                        this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, bytes, MirrorP2PServer.channelId);
-
-                        break;
-                    }
-
-                case DataChannelLabelType.TranportInternal:
-                    {
-                        // TODO:
-                        /*            string text = System.Text.Encoding.UTF8.GetString(bytes);
-            TransportMessages.Message message = JsonUtility.FromJson<TransportMessages.Message>(text);
-            if (!string.IsNullOrEmpty(message.type))
-            {
-                if (message.type == TransportMessages.PongMessage.type) this.OnReceivedPongMessage(JsonUtility.FromJson<TransportMessages.PongMessage>(text));
-                return;
-            }*/
-
-                        break;
-                    }
-            }
-
+            this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, message.ToPayload(), MirrorP2PServer.channelId);
         }
 
         void OnConnected()
         {
             UnityEngine.Debug.Log($"Server OnConnected {MirrorP2PServer.connectionId}");
 
-            this.OnConnectedAction?.Invoke(MirrorP2PServer.connectionId);
+            UniTask.Void(async () =>
+            {
+                var ct = new CancellationTokenSource(); // TODO:
+                var result = false;
+                while (!result && this.state == State.Runnning)
+                {
+                    result = await this.connection.SendRequest(MirrorP2PMessage.CreateConnectedConfirmRequest(), ct.Token);
+                }
+
+                this.OnConnectedAction?.Invoke(MirrorP2PServer.connectionId);
+            });
         }
 
         void OnDisconnected()
@@ -147,46 +129,5 @@ namespace Mirror.WebRTC
                 this.connection = default;
             }
         }
-
-        #region timer
-
-        Timer timer = default;
-        DateTime latestPingTime = default;
-        DateTime latestPongTime = default;
-
-        void StartTimer()
-        {
-            if (this.timer == default)
-            {
-                this.timer = new Timer(1000); // 1000 mili sec = 1 sec
-                this.timer.Elapsed += this.Update;
-            }
-
-            this.timer.Start();
-        }
-
-        void StopTimer()
-        {
-            this.timer.Stop();
-        }
-
-        void Update(object sender, ElapsedEventArgs e)
-        {
-            /*            if (this.connection == default) return;
-                        if (!this.connection.IsConnected()) return;
-
-                        TransportMessages.PingMessage pingMessage = new TransportMessages.PingMessage();
-                        if (this.connection.SendMessage(JsonUtility.ToJson(pingMessage)))
-                        {
-                            this.latestPingTime = DateTime.UtcNow;
-                        }*/
-        }
-
-        void OnReceivedPongMessage(TransportMessages.PongMessage pongMessage)
-        {
-            this.latestPongTime = DateTime.UtcNow;
-        }
-
-        #endregion
     }
 }
