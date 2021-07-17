@@ -2,24 +2,23 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Unity.WebRTC;
 using UnityEngine;
 
 namespace Mirror.WebRTC
 {
     public class MirrorP2PConnection
     {
-        // TODO: UniRX
-        public delegate void OnMessageHandler(string dataChannelLabel, byte[] rawData);
-        public delegate void OnConnectedHandler();
-        public delegate void OnDisconnectedHandler();
+        public delegate void OnMessageDelegate(MirrorP2PMessage message);
+        public delegate void OnRequestDelegate(MirrorP2PMessage message);
+        public delegate void OnConnectedDelegate();
+        public delegate void OnDisconnectedDelegate();
 
-        public event OnMessageHandler onMessage;
-        public event OnConnectedHandler onConnected;
-        public event OnDisconnectedHandler onDisconnected;
+        public OnMessageDelegate OnMessageHandler;
+        public OnRequestDelegate OnRequestHandler;
+        public OnConnectedDelegate OnConnectedHandler;
+        public OnDisconnectedDelegate OnDisconnectedHandler;
 
         static readonly float interval = 5.0f;
-        static readonly string dataChannelLabel = "Mirror";
 
         string signalingURL;
         string signalingKey;
@@ -52,9 +51,10 @@ namespace Mirror.WebRTC
             this.state = State.Running;
 
             this.ayameConnection = new AyameConnection();
-            this.ayameConnection.OnConnectedHandler += this.OnConnected;
-            var dataChannelLabels = new string[] { dataChannelLabel };
-            this.ayameConnection.Connect(this.signalingURL, this.signalingKey, this.roomId, dataChannelLabels, interval);
+            this.ayameConnection.OnConnectedHandler += () => { this.OnConnectedHandler?.Invoke(); };
+            this.ayameConnection.OnDisconnectedHandler += () => { this.OnDisconnectedHandler?.Invoke(); };
+            this.ayameConnection.OnMessageHandler += this.OnMessage;
+            this.ayameConnection.Connect(this.signalingURL, this.signalingKey, this.roomId, interval);
         }
 
         public void Disconnect()
@@ -66,22 +66,21 @@ namespace Mirror.WebRTC
             Debug.Log("Disconnect");
         }
 
-        public bool IsConnectedAllDataChannel()
+        public bool IsConnected()
         {
+            return this.ayameConnection.IsConnected();
+        }
+
+        public bool SendMessage(MirrorP2PMessage message)
+        {
+            if (!this.IsConnected()) return false;
+
+            this.ayameConnection.SendMessage(message.ToPayload());
+
             return true;
         }
 
-        public bool SendMessage(byte[] message)
-        {
-            if (!this.IsConnectedAllDataChannel()) return false;
-
-            var mirrorP2PMessage = MirrorP2PMessage.CreateRawDataMessage(message);
-            this.ayameConnection.SendMessage(MirrorP2PConnection.dataChannelLabel, mirrorP2PMessage.ToPayload());
-
-            return true;
-        }
-
-        async UniTask<bool> SendMessage(string dataChannelLabel, MirrorP2PMessage message, CancellationToken ct)
+        public async UniTask<bool> SendRequest(MirrorP2PMessage message, CancellationToken ct)
         {
             if (this.utcss.ContainsKey(message.Uid)) return false;
 
@@ -90,7 +89,7 @@ namespace Mirror.WebRTC
 
             var utcs = new UniTaskCompletionSource<bool>();
             this.utcss[message.Uid] = utcs;
-            this.ayameConnection.SendMessage(dataChannelLabel, message.ToPayload());
+            this.ayameConnection.SendMessage(message.ToPayload());
 
             bool result = false;
 
@@ -107,24 +106,18 @@ namespace Mirror.WebRTC
             return result;
         }
 
-        void OnMessage(RTCDataChannel dataChannel, byte[] bytes)
+        public void SendResponce(MirrorP2PMessage message)
+        {
+            this.SendMessage(message);
+        }
+
+        void OnMessage(byte[] bytes)
         {
             var mirrorP2PMessage = MirrorP2PMessage.LoadMessage(bytes);
 
-            UnityEngine.Debug.Log($"OnMessage: label {dataChannel.Label},uid {mirrorP2PMessage.Uid}, Type {mirrorP2PMessage.MessageType.ToString()}");
-
             switch (mirrorP2PMessage.MessageType)
             {
-                case MirrorP2PMessage.Type.Ping:
-                    {
-                        var message = MirrorP2PMessage.CreatePongMessage(mirrorP2PMessage.Uid);
-                        dataChannel.Send(message.ToPayload());
-
-                        break;
-                    }
-
                 case MirrorP2PMessage.Type.ConnectedConfirmResponce:
-                case MirrorP2PMessage.Type.Pong:
                     {
                         if (!this.utcss.ContainsKey(mirrorP2PMessage.Uid)) return;
                         this.utcss[mirrorP2PMessage.Uid].TrySetResult(true);
@@ -133,48 +126,19 @@ namespace Mirror.WebRTC
 
                 case MirrorP2PMessage.Type.ConnectedConfirmRequest:
                     {
-                        var message = MirrorP2PMessage.CreateConnectedConfirmResponce(mirrorP2PMessage.Uid);
-                        dataChannel.Send(message.ToPayload());
-                        /*                        this.otherDataChannelConnected = true;
-                                                if (this.myDataChannelConencted) this.OnConnectedAllDataChannel();*/
+                        this.OnRequestHandler?.Invoke(mirrorP2PMessage);
                         break;
                     }
 
                 case MirrorP2PMessage.Type.RawData:
                     {
-                        this.onMessage?.Invoke(dataChannel.Label, mirrorP2PMessage.rawData);
+                        this.OnMessageHandler?.Invoke(mirrorP2PMessage);
                         break;
                     }
 
                 default:
                     break;
             }
-        }
-
-        void OnConnected(RTCDataChannel channel)
-        {
-            /*            UniTask.Void(async () =>
-                        {
-                            bool result = false;
-                            while (!result)
-                            {
-                                try
-                                {
-                                    if (this.state != State.Running) break;
-                                    var message = MirrorP2PMessage.CreateConnectedConfirmRequest();
-                                    var ct = new CancellationToken();
-                                    result = await this.SendMessage(channel.Label, message, ct);
-                                    if (!result) continue;
-
-                                    this.myDataChannelConencted = true;
-                                    if (this.otherDataChannelConnected) this.OnConnectedAllDataChannel();
-                                }
-                                catch (OperationCanceledException ex)
-                                {
-
-                                }
-                            }
-                        });*/
         }
     }
 }
