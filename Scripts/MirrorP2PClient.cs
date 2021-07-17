@@ -127,7 +127,6 @@ namespace Mirror.WebRTC
                     result = await this.connection.SendRequest(MirrorP2PMessage.CreateConnectedConfirmRequest(), ct.Token);
                 }
 
-                await UniTask.Delay(10000);
                 UnityEngine.Debug.Log($"Client OnConnected");
                 this.connectionStatus = ConnectionStatus.Connected;
                 this.OnConnectedAction?.Invoke();
