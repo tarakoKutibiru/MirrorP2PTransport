@@ -74,7 +74,7 @@ namespace Mirror.WebRTC
         public bool SendMessage(MirrorP2PMessage message)
         {
             if (!this.IsConnected()) return false;
-
+            Debug.Log($"SendMessage: {message.MessageType}");
             this.ayameConnection.SendMessage(message.ToPayload());
 
             return true;
@@ -89,6 +89,8 @@ namespace Mirror.WebRTC
 
             var utcs = new UniTaskCompletionSource<bool>();
             this.utcss[message.Uid] = utcs;
+
+            Debug.Log($"SendRequest: {message.MessageType}");
             this.ayameConnection.SendMessage(message.ToPayload());
 
             bool result = false;
@@ -114,6 +116,8 @@ namespace Mirror.WebRTC
         void OnMessage(byte[] bytes)
         {
             var mirrorP2PMessage = MirrorP2PMessage.LoadMessage(bytes);
+
+            Debug.Log($"OnMessage: {mirrorP2PMessage.MessageType}");
 
             switch (mirrorP2PMessage.MessageType)
             {

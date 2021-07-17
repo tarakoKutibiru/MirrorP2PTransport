@@ -1,6 +1,4 @@
-﻿using Cysharp.Threading.Tasks;
-using System;
-using System.Threading;
+﻿using System;
 
 namespace Mirror.WebRTC
 {
@@ -52,6 +50,8 @@ namespace Mirror.WebRTC
 
         void Connect()
         {
+            this.connectionStatus = ConnectionStatus.Connecting;
+
             if (this.connection == default)
             {
                 var connection = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: roomId);
@@ -59,6 +59,7 @@ namespace Mirror.WebRTC
                 connection.OnConnectedHandler += this.OnConnected;
                 connection.OnDisconnectedHandler += this.OnDisconnected;
                 connection.OnMessageHandler += this.OnMessage;
+                connection.OnRequestHandler += this.OnRequest;
 
                 connection.Connect();
 
@@ -74,6 +75,7 @@ namespace Mirror.WebRTC
         {
             if (!this.IsConnected()) return false;
 
+            this.connectionStatus = ConnectionStatus.Disconnected;
             this.connection.Disconnect();
 
             return true;
@@ -88,6 +90,7 @@ namespace Mirror.WebRTC
 
         public bool IsConnected()
         {
+            if (this.connectionStatus != ConnectionStatus.Connected) return false;
             if (this.connection == default) return false;
             if (!this.connection.IsConnected()) return false;
 
@@ -96,24 +99,32 @@ namespace Mirror.WebRTC
 
         void OnMessage(MirrorP2PMessage message)
         {
-            this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, message.ToPayload(), MirrorP2PServer.channelId);
+            if (this.connectionStatus != ConnectionStatus.Connected) return;
+            this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, message.rawData, MirrorP2PServer.channelId);
+        }
+
+        void OnRequest(MirrorP2PMessage message)
+        {
+            switch (message.MessageType)
+            {
+                case MirrorP2PMessage.Type.ConnectedConfirmRequest:
+                    {
+                        this.connectionStatus = ConnectionStatus.Connected;
+                        this.connection.SendResponce(MirrorP2PMessage.CreateConnectedConfirmResponce(message.Uid));
+                        UnityEngine.Debug.Log($"Server OnConnected");
+                        this.connectionStatus = ConnectionStatus.Connected;
+                        this.OnConnectedAction?.Invoke(MirrorP2PServer.connectionId);
+                        break;
+                    }
+
+                default:
+                    break;
+            }
         }
 
         void OnConnected()
         {
-            UnityEngine.Debug.Log($"Server OnConnected {MirrorP2PServer.connectionId}");
 
-            UniTask.Void(async () =>
-            {
-                var ct = new CancellationTokenSource(); // TODO:
-                var result = false;
-                while (!result && this.state == State.Runnning)
-                {
-                    result = await this.connection.SendRequest(MirrorP2PMessage.CreateConnectedConfirmRequest(), ct.Token);
-                }
-
-                this.OnConnectedAction?.Invoke(MirrorP2PServer.connectionId);
-            });
         }
 
         void OnDisconnected()

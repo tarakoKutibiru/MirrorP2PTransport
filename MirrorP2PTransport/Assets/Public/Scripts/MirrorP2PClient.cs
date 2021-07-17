@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Cysharp.Threading.Tasks;
+using System;
+using System.Threading;
 
 namespace Mirror.WebRTC
 {
@@ -25,11 +27,13 @@ namespace Mirror.WebRTC
 
         public void Run()
         {
+            this.state = State.Runnning;
             this.Connect();
         }
 
         public void Stop()
         {
+            this.state = State.Stop;
             this.Disconnect();
         }
 
@@ -65,6 +69,7 @@ namespace Mirror.WebRTC
 
         public bool Send(byte[] data)
         {
+            if (this.state != State.Runnning) return false;
             if (!this.IsConnected())
             {
                 UnityEngine.Debug.LogError("MirrorP2PClient Send Error.Not Connected.");
@@ -86,23 +91,25 @@ namespace Mirror.WebRTC
 
         void OnRequest(MirrorP2PMessage message)
         {
-            switch (message.MessageType)
-            {
-                case MirrorP2PMessage.Type.ConnectedConfirmRequest:
-                    {
-                        this.connectionStatus = ConnectionStatus.Connected;
-                        this.connection.SendResponce(MirrorP2PMessage.CreateConnectedConfirmResponce(message.Uid));
-                        this.OnConnectedAction?.Invoke();
-                        break;
-                    }
+            /*            switch (message.MessageType)
+                        {
+                            case MirrorP2PMessage.Type.ConnectedConfirmRequest:
+                                {
+                                    this.connectionStatus = ConnectionStatus.Connected;
+                                    this.connection.SendResponce(MirrorP2PMessage.CreateConnectedConfirmResponce(message.Uid));
+                                    UnityEngine.Debug.Log($"Client OnConnected");
+                                    this.OnConnectedAction?.Invoke();
+                                    break;
+                                }
 
-                default:
-                    break;
-            }
+                            default:
+                                break;
+                        }*/
         }
 
         public bool IsConnected()
         {
+            if (this.connectionStatus != ConnectionStatus.Connected) return false;
             if (this.connection == default) return false;
             if (!this.connection.IsConnected()) return false;
 
@@ -111,7 +118,20 @@ namespace Mirror.WebRTC
 
         protected void OnConnected()
         {
-            this.OnConnectedAction?.Invoke();
+            UniTask.Void(async () =>
+            {
+                var ct = new CancellationTokenSource(); // TODO:
+                var result = false;
+                while (!result && this.state == State.Runnning)
+                {
+                    result = await this.connection.SendRequest(MirrorP2PMessage.CreateConnectedConfirmRequest(), ct.Token);
+                }
+
+                await UniTask.Delay(10000);
+                UnityEngine.Debug.Log($"Client OnConnected");
+                this.connectionStatus = ConnectionStatus.Connected;
+                this.OnConnectedAction?.Invoke();
+            });
         }
 
         protected void OnDisconnected()
