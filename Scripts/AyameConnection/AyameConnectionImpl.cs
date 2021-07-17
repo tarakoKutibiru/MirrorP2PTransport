@@ -230,6 +230,8 @@ namespace Mirror.WebRTC
             this.dataChannels.Add(dataChannel);
 
             Debug.Log($"label: {dataChannel.Label},id: {dataChannel.Id}");
+
+            this.OnConnectedHandler?.Invoke(new AyameConnectionImplConstants.DataChannelSetting(dataChannel.Id, dataChannel.Label));
         }
         #endregion
     }
