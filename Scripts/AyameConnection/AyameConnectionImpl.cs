@@ -10,27 +10,23 @@ namespace Mirror.WebRTC
 {
     public class AyameConnectionImpl : IAyameConnectionImpl
     {
-        public OnMessageDelegate OnMessageHandler { get; set; }
-        public OnConnectedDelegate OnConnectedHandler { get; set; }
-        public OnDisconnectedDelegate OnDisconnectedHandler { get; set; }
+        public AyameConnectionImplConstants.OnMessageDelegate OnMessageHandler { get; set; }
+        public AyameConnectionImplConstants.OnConnectedDelegate OnConnectedHandler { get; set; }
+        public AyameConnectionImplConstants.OnDisconnectedDelegate OnDisconnectedHandler { get; set; }
 
-        string[] dataChannelLabels;
+        AyameConnectionImplConstants.DataChannelSetting[] dataChannelSettings = default;
 
         AyameSignaling signaling = default;
         RTCConfiguration rtcConfiguration = default;
         RTCPeerConnection peerConnection = default;
         List<RTCDataChannel> dataChannels = default;
-        List<int> dataChannelIds = default;
 
-        UniTaskCompletionSource<bool> utcs = default;
-
-        public async UniTask<List<int>> Connect(string signalingURL, string signalingKey, string roomId, string[] dataChannelLabels, float timeOut)
+        public void Connect(AyameConnectionImplConstants.ConnectSetting setting)
         {
-            this.dataChannelLabels = dataChannelLabels;
+            this.dataChannelSettings = setting.DataChannelSettings;
             this.dataChannels = new List<RTCDataChannel>();
-            this.dataChannelIds = new List<int>();
 
-            this.signaling = new AyameSignaling(signalingURL, signalingKey, roomId, timeOut);
+            this.signaling = new AyameSignaling(setting.SignalingURL, setting.SignalingKey, setting.RoomId, setting.TimeOut);
             this.signaling.OnAccept += OnAccept;
             this.signaling.OnAnswer += OnAnswer;
             this.signaling.OnOffer += OnOffer;
@@ -39,18 +35,7 @@ namespace Mirror.WebRTC
             this.rtcConfiguration = new RTCConfiguration();
             this.rtcConfiguration.iceServers = new[] { new RTCIceServer { urls = new[] { "stun:stun.l.google.com:19302" } } };
 
-            this.utcs = new UniTaskCompletionSource<bool>();
             this.signaling.Start();
-
-            var result = await this.utcs.Task;
-            if (result)
-            {
-                return this.dataChannelIds;
-            }
-            else
-            {
-                return default;
-            }
         }
 
         public void Disconnect()
@@ -190,12 +175,14 @@ namespace Mirror.WebRTC
         {
             var pc = new RTCPeerConnection(ref rtcConfiguration);
 
-            RTCDataChannelInit dataChannelInit = new RTCDataChannelInit();
-            dataChannelInit.ordered = true;
-
-            foreach (var label in this.dataChannelLabels)
+            foreach (var dataChannelSetting in this.dataChannelSettings)
             {
-                RTCDataChannel dataChannel = pc.CreateDataChannel(label, dataChannelInit);
+                RTCDataChannelInit dataChannelInit = new RTCDataChannelInit();
+                dataChannelInit.ordered = true;
+                dataChannelInit.negotiated = true;
+                dataChannelInit.id = dataChannelSetting.Id;
+
+                RTCDataChannel dataChannel = pc.CreateDataChannel(dataChannelSetting.Label, dataChannelInit);
                 dataChannel.OnOpen += () => this.OnConnectedDataChannel(dataChannel);
             }
 
