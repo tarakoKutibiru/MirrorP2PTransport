@@ -73,8 +73,7 @@ namespace Mirror.WebRTC
 
         public bool Disconnect(int connectionId)
         {
-            if (!this.IsConnected()) return false;
-
+            if (this.connection == default) return false;
             this.connectionStatus = ConnectionStatus.Disconnected;
             this.connection.Disconnect();
 
@@ -130,9 +129,11 @@ namespace Mirror.WebRTC
         void OnDisconnected()
         {
             this.connectionStatus = ConnectionStatus.Disconnected;
+            this.Disconnect(MirrorP2PServer.connectionId);
 
             this.OnDisconnectedAction?.Invoke(MirrorP2PServer.connectionId);
             UnityEngine.Debug.Log("MirrorP2PServer:OnDisconnected");
+
             if (this.state == State.Runnning)
             {
                 this.Connect();

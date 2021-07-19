@@ -41,10 +41,13 @@ namespace Mirror.WebRTC
         public void Disconnect()
         {
             // Close DataChannel
-            foreach (var dataChannel in this.dataChannels)
+            if (this.dataChannels != default)
             {
-                if (dataChannel.ReadyState == RTCDataChannelState.Closed) continue;
-                dataChannel.Close();
+                foreach (var dataChannel in this.dataChannels)
+                {
+                    if (dataChannel.ReadyState == RTCDataChannelState.Closed) continue;
+                    dataChannel.Close();
+                }
             }
 
             // Close PeerConnection
@@ -53,7 +56,11 @@ namespace Mirror.WebRTC
                 this.peerConnection.Close();
             }
 
-            this.signaling.Stop();
+            if (this.signaling != default)
+            {
+                this.signaling.Stop();
+            }
+
             Debug.Log("Disconnect");
 
             this.signaling = default;
@@ -64,9 +71,6 @@ namespace Mirror.WebRTC
 
         void OnDisconnected()
         {
-            this.signaling = default;
-            this.dataChannels = default;
-            this.rtcConfiguration = default;
             Debug.Log("OnDisconnected");
 
             this.OnDisconnectedHandler?.Invoke();

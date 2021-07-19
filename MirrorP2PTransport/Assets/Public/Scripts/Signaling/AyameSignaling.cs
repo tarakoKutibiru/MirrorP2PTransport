@@ -71,7 +71,7 @@ namespace Mirror.WebRTC
 
             m_wsCloseEvent.Close();
             m_wsCloseEvent = default;
-            m_webSocket.Close();
+            m_webSocket?.Close();
 
             m_signalingThread = default;
 
