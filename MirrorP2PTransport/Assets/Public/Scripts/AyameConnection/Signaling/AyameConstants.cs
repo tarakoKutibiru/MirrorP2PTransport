@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿#if !UNITY_WEBGL
+using System.Collections.Generic;
 using Unity.WebRTC;
 
 namespace Ayame.Signaling
@@ -18,6 +19,11 @@ namespace Ayame.Signaling
 
         public RTCIceServer[] ToRTCIceServers(RTCIceServer[] iceServers)
         {
+            if (iceServers == default || iceServers.Length <= 0)
+            {
+                UnityEngine.Debug.LogError("iceServers is null");
+                return new RTCIceServer[] { };
+            }
             RTCIceServer[] servers = new RTCIceServer[this.iceServers.Count + iceServers.Length];
             for (int i = 0; i < this.iceServers.Count; i++)
             {
@@ -90,3 +96,5 @@ namespace Ayame.Signaling
         public string type = "pong";
     }
 }
+
+#endif

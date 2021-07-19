@@ -1,4 +1,5 @@
-﻿using Unity.WebRTC;
+﻿#if !UNITY_WEBGL
+using Unity.WebRTC;
 
 namespace Mirror.WebRTC
 {
@@ -20,3 +21,4 @@ namespace Mirror.WebRTC
         void SendCandidate(string connectionId, RTCIceCandidate​ candidate);
     }
 }
+#endif

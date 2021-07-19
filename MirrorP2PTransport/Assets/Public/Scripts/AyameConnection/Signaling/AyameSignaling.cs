@@ -1,4 +1,5 @@
-﻿using Ayame.Signaling;
+﻿#if !UNITY_WEBGL
+using Ayame.Signaling;
 using System;
 using System.Security.Authentication;
 using System.Text;
@@ -66,6 +67,7 @@ namespace Mirror.WebRTC
 
         public void Stop()
         {
+            Debug.Log("###Stop");
             m_running = false;
             m_signalingThread.Abort();
 
@@ -294,3 +296,5 @@ namespace Mirror.WebRTC
 
     }
 }
+
+#endif
