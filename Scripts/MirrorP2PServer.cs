@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 
 namespace Mirror.WebRTC
 {
@@ -50,6 +51,7 @@ namespace Mirror.WebRTC
 
         void Connect()
         {
+            UnityEngine.Debug.Log($"{this.GetType().Name}: {MethodBase.GetCurrentMethod().Name}");
             this.connectionStatus = ConnectionStatus.Connecting;
 
             if (this.connection == default)

@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_WEBGL
+using System.Runtime.InteropServices;
+using System.IO;
+#endif
 
 namespace Mirror.WebRTC
 {
@@ -8,14 +12,19 @@ namespace Mirror.WebRTC
     {
         public string signalingURL = null;
         public string signalingKey = null;
-        public string roomId       = null;
+        public string roomId = null;
 
         MirrorP2PClient client = null;
         MirrorP2PServer server = null;
 
+#if UNITY_WEBGL
+        [DllImport("__Internal")]
+        static extern void InjectionJs(string url, string id);
+#endif
+
         public override bool Available()
         {
-#if UNITY_EDITOR || UNITY_IOS || UNITY_STANDALONE
+#if UNITY_EDITOR || UNITY_IOS || UNITY_STANDALONE || UNITY_WEBGL
             return true;
 #else
             return false;
@@ -32,26 +41,44 @@ namespace Mirror.WebRTC
             this.server = new MirrorP2PServer();
 
             this.client.OnReceivedDataAction += (data, channelId) => { this.OnClientDataReceived?.Invoke(new ArraySegment<byte>(data), channelId); };
-            this.client.OnConnectedAction    += () => { this.OnClientConnected?.Invoke(); };
+            this.client.OnConnectedAction += () => { this.OnClientConnected?.Invoke(); };
             this.client.OnDisconnectedAction += () => { this.OnClientDisconnected?.Invoke(); };
 
             this.server.OnReceivedDataAction += (connectionId, data, channelId) => { this.OnServerDataReceived?.Invoke(connectionId, new ArraySegment<byte>(data), channelId); };
-            this.server.OnConnectedAction    += (connectionid) => { this.OnServerConnected?.Invoke(connectionid); };
+            this.server.OnConnectedAction += (connectionid) => { this.OnServerConnected?.Invoke(connectionid); };
             this.server.OnDisconnectedAction += (connectionid) => { this.OnServerDisconnected?.Invoke(connectionid); };
+#if UNITY_WEBGL
+            {
+                // Note: UnityRoomで使う場合
+                //       UnityRoomはStreamingAssetsが使えない。.jsファイルは別途HostingServiceなどでアップしておく必要がある。
+                var url = Path.Combine(Application.streamingAssetsPath, "Ayame.js");
+                var id = "0";
+                InjectionJs(url, id);
+            }
 
+            {
+                var url = "https://cdn.jsdelivr.net/npm/@open-ayame/ayame-web-sdk@2020.3.0/dist/ayame.js";
+                var id = "1";
+                InjectionJs(url, id);
+            }
+#else
             Unity.WebRTC.WebRTC.Initialize(Unity.WebRTC.EncoderType.Software);
-
+#endif
             Debug.Log("MirrorP2PTransport initialized!");
         }
 
         private void Start()
         {
+#if !UNITY_WEBGL
             StartCoroutine(Unity.WebRTC.WebRTC.Update());
+#endif
         }
 
         private void OnDestroy()
         {
+#if !UNITY_WEBGL
             Unity.WebRTC.WebRTC.Dispose();
+#endif
         }
 
         public override void Shutdown()

@@ -1,6 +1,7 @@
 ﻿using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using UnityEngine;
 
@@ -47,6 +48,7 @@ namespace Mirror.WebRTC
 
         public void Connect()
         {
+            UnityEngine.Debug.Log($"{this.GetType().Name}: {MethodBase.GetCurrentMethod().Name}");
             if (this.state == State.Running) return;
             this.state = State.Running;
 
