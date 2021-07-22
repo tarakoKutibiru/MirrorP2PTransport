@@ -55,20 +55,13 @@ namespace Mirror.WebRTC
             }
         }
 
-        public void OnMessage(IntPtr ptr)
+        public void OnMessage(string base64)
         {
-            var data = ptrToByteArray(ptr);
+            Debug.Log($"AyameReceive: {base64}");
+            var data = Convert.FromBase64String(base64);
+
             Debug.Log($"data.length {data.Length}");
             MessageHandler?.Invoke(data);
-        }
-
-        private static byte[] ptrToByteArray(IntPtr ptr)
-        {
-            int len = Marshal.ReadInt32(ptr);
-            byte[] arr = new byte[len];
-            Marshal.Copy(IntPtr.Add(ptr, 4), arr, 0, len);
-            ExecFree((uint)ptr);
-            return arr;
         }
     }
 

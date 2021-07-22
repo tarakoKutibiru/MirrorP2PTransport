@@ -16,8 +16,8 @@ function Connect(signalingUrl, roomId, signalingKey,dataChannelLabel,dataChannel
         connection.on('open', async (e) => {
             var dataChannelOptions = {
                 ordered: true,
-                negotiated: true,
-                id: dataChannelId
+                // negotiated: true,
+                // id: dataChannelId
               };
             var channel = await connection.createDataChannel(dataChannelLabel,dataChannelOptions);
             if (channel) { OnConnected(channel); }
@@ -50,12 +50,13 @@ function IsConnectedDataChannel() {
 }
 
 function OnConnected(channel) {
+    console.log("Ayame.js: OnConnected.");
     if (dataChannel) return;
     dataChannel = channel;
     dataChannel.onmessage = OnMessage;
 
     unityInstance.SendMessage(
-        'Ayame',
+        'AyameEventReceiver',
         'OnEvent',
         'OnConnected'
     );
@@ -63,17 +64,19 @@ function OnConnected(channel) {
 
 function OnDisconnected() {
     unityInstance.SendMessage(
-        'Ayame',
+        'AyameEventReceiver',
         'OnEvent',
         'OnDisconnected'
     );
 }
 
 function OnMessage(e) {
-    var ptr = utils.arrayToReturnPtr(e.data, Uint8Array);
+    // var ptr = ArrayToReturnPtr(e.data, Uint8Array);
+    let v = btoa(String.fromCharCode(...new Uint8Array(e.data)));
     unityInstance.SendMessage(
-        'Ayame',
+        'AyameEventReceiver',
         'OnMessage',
-        ptr
+        v
     );
 }
+
