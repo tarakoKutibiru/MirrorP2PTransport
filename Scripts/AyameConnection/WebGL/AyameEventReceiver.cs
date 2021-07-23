@@ -53,10 +53,7 @@ namespace Mirror.WebRTC
 
         public void OnMessage(string base64)
         {
-            Debug.Log($"AyameReceive: {base64}");
             var data = Convert.FromBase64String(base64);
-
-            Debug.Log($"data.length {data.Length}");
             MessageHandler?.Invoke(data);
         }
     }
