@@ -99,6 +99,22 @@ namespace Mirror.WebRTC.Samples
 
                 if (GUILayout.Button("Return", buttonStyle, GUILayout.MinWidth(minWidth), GUILayout.MinHeight(mingHeight)))
                 {
+                    var manager = NetworkManager.singleton;
+                    // stop host if host mode
+                    if (NetworkServer.active && NetworkClient.isConnected)
+                    {
+                        manager.StopHost();
+                    }
+                    // stop client if client-only
+                    else if (NetworkClient.isConnected)
+                    {
+                        manager.StopClient();
+                    }
+                    // stop server if server-only
+                    else if (NetworkServer.active)
+                    {
+                        manager.StopServer();
+                    }
                     SceneManager.LoadScene("HomeScene");
                 }
 
