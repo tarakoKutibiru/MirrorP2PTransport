@@ -19,6 +19,8 @@ namespace Mirror.WebRTC
 
         MirrorP2PConnection connection = default;
 
+        CancellationTokenSource cts = default;
+
         public MirrorP2PClient(string signalingURL, string signalingKey)
         {
             this.signalingURL = signalingURL;
@@ -118,15 +120,29 @@ namespace Mirror.WebRTC
 
         protected void OnConnected()
         {
+            this.cts?.Cancel();
+            this.cts = default;
+
             UniTask.Void(async () =>
             {
-                var ct = new CancellationTokenSource(); // TODO:
+                this.cts = new CancellationTokenSource(); // TODO:
                 var result = false;
-                while (!result && this.state == State.Runnning)
-                {
-                    result = await this.connection.SendRequest(MirrorP2PMessage.CreateConnectedConfirmRequest(), ct.Token);
-                }
 
+                try
+                {
+                    while (!result && this.state == State.Runnning)
+                    {
+                        result = await this.connection.SendRequest(MirrorP2PMessage.CreateConnectedConfirmRequest(), this.cts.Token);
+                    }
+                }
+                catch (OperationCanceledException ex)
+                {
+                    UnityEngine.Debug.Log(ex.Message);
+                }
+                finally
+                {
+                    this.cts = default;
+                }
                 UnityEngine.Debug.Log($"Client OnConnected");
                 this.connectionStatus = ConnectionStatus.Connected;
                 this.OnConnectedAction?.Invoke();
