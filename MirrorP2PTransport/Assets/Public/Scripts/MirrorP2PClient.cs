@@ -13,9 +13,7 @@ namespace Mirror.WebRTC
 
         string signalingURL;
         string signalingKey;
-
-        string roomId = "";
-        public string RoomId { get => this.roomId; set => this.roomId = value; }
+        public string RoomId { get; set; }
 
         MirrorP2PConnection connection = default;
 
@@ -45,7 +43,7 @@ namespace Mirror.WebRTC
 
             if (this.connection == default)
             {
-                var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.roomId);
+                var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.RoomId);
                 connection.OnConnectedHandler += this.OnConnected;
                 connection.OnDisconnectedHandler += this.OnDisconnected;
                 connection.OnMessageHandler += this.OnMessage;
@@ -65,6 +63,7 @@ namespace Mirror.WebRTC
         {
             if (this.connection == default) return;
 
+            this.cts?.Cancel();
             this.connectionStatus = ConnectionStatus.Disconnecting;
             this.connection.Disconnect();
         }
@@ -93,20 +92,7 @@ namespace Mirror.WebRTC
 
         void OnRequest(MirrorP2PMessage message)
         {
-            /*            switch (message.MessageType)
-                        {
-                            case MirrorP2PMessage.Type.ConnectedConfirmRequest:
-                                {
-                                    this.connectionStatus = ConnectionStatus.Connected;
-                                    this.connection.SendResponce(MirrorP2PMessage.CreateConnectedConfirmResponce(message.Uid));
-                                    UnityEngine.Debug.Log($"Client OnConnected");
-                                    this.OnConnectedAction?.Invoke();
-                                    break;
-                                }
 
-                            default:
-                                break;
-                        }*/
         }
 
         public bool IsConnected()
@@ -121,11 +107,10 @@ namespace Mirror.WebRTC
         protected void OnConnected()
         {
             this.cts?.Cancel();
-            this.cts = default;
 
             UniTask.Void(async () =>
             {
-                this.cts = new CancellationTokenSource(); // TODO:
+                this.cts = new CancellationTokenSource();
                 var result = false;
 
                 try
