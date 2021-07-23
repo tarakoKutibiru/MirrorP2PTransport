@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.InteropServices;
 using UnityEngine;
 
 namespace Mirror.WebRTC
@@ -17,9 +16,6 @@ namespace Mirror.WebRTC
         public OnMessageDelegate MessageHandler;
 
         static AyameEventReceiver instance = default;
-
-        [DllImport("__Internal")]
-        private static extern void ExecFree(uint arg);
 
         public static AyameEventReceiver GetInstance()
         {
