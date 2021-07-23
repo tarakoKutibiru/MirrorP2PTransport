@@ -12,7 +12,7 @@ WebRTCのシグナリングサーバには時雨堂様のAyameを利用してい
 - Host Client間の接続にWebRTCのDataChannelを使っている。
 - シグナリングサーバには時雨堂様のAyame Laboを使っている。
 - 現時点で1対1の通信しかできない。
-- Windows/Mac/iOS/Androidに対応
+- Windows/Mac/iOS/Android/WebGLに対応
 
 ## このプロジェクトの目的
 
