@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Cysharp.Threading.Tasks;
+using System;
+using System.Threading;
 
 namespace Mirror.WebRTC
 {
@@ -11,11 +13,11 @@ namespace Mirror.WebRTC
 
         string signalingURL;
         string signalingKey;
-
-        string roomId = "";
-        public string RoomId { get => this.roomId; set => this.roomId = value; }
+        public string RoomId { get; set; }
 
         MirrorP2PConnection connection = default;
+
+        CancellationTokenSource cts = default;
 
         public MirrorP2PClient(string signalingURL, string signalingKey)
         {
@@ -41,30 +43,34 @@ namespace Mirror.WebRTC
 
             if (this.connection == default)
             {
-                var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.roomId);
-                connection.onConnected += this.OnConnected;
-                connection.onDisconnected += this.OnDisconnected;
-                connection.onMessage += this.OnMessage;
-
+                var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.RoomId);
+                connection.OnConnectedHandler += this.OnConnected;
+                connection.OnDisconnectedHandler += this.OnDisconnected;
+                connection.OnMessageHandler += this.OnMessage;
+                connection.OnRequestHandler += this.OnRequest;
                 connection.Connect();
-
                 this.connection = connection;
             }
             else
             {
                 this.connection.Connect();
             }
+
+            this.connectionStatus = ConnectionStatus.Connecting;
         }
 
         void Disconnect()
         {
             if (this.connection == default) return;
 
+            this.cts?.Cancel();
+            this.connectionStatus = ConnectionStatus.Disconnecting;
             this.connection.Disconnect();
         }
 
         public bool Send(byte[] data)
         {
+            if (this.state != State.Runnning) return false;
             if (!this.IsConnected())
             {
                 UnityEngine.Debug.LogError("MirrorP2PClient Send Error.Not Connected.");
@@ -72,44 +78,68 @@ namespace Mirror.WebRTC
                 return false;
             }
 
-            this.connection.SendMessage(data);
+            this.connection.SendMessage(MirrorP2PMessage.CreateRawDataMessage(data));
 
             return true;
         }
 
-        protected void OnMessage(string dataChannelLabel, byte[] bytes)
+        void OnMessage(MirrorP2PMessage message)
         {
             if (this.state == State.Stop) return;
 
-            this.OnReceivedDataAction?.Invoke(bytes, 0);
+            this.OnReceivedDataAction?.Invoke(message.rawData, 0);
+        }
+
+        void OnRequest(MirrorP2PMessage message)
+        {
+
         }
 
         public bool IsConnected()
         {
+            if (this.connectionStatus != ConnectionStatus.Connected) return false;
             if (this.connection == default) return false;
-            if (!this.connection.IsConnectedAllDataChannel()) return false;
+            if (!this.connection.IsConnected()) return false;
 
             return true;
         }
 
         protected void OnConnected()
         {
-            this.OnConnectedAction?.Invoke();
+            this.cts?.Cancel();
+
+            UniTask.Void(async () =>
+            {
+                this.cts = new CancellationTokenSource();
+                var result = false;
+
+                try
+                {
+                    while (!result && this.state == State.Runnning)
+                    {
+                        result = await this.connection.SendRequest(MirrorP2PMessage.CreateConnectedConfirmRequest(), this.cts.Token);
+                    }
+                }
+                catch (OperationCanceledException ex)
+                {
+                    UnityEngine.Debug.Log(ex.Message);
+                }
+                finally
+                {
+                    this.cts = default;
+                }
+                UnityEngine.Debug.Log($"Client OnConnected");
+                this.connectionStatus = ConnectionStatus.Connected;
+                this.OnConnectedAction?.Invoke();
+            });
         }
 
         protected void OnDisconnected()
         {
+            this.connectionStatus = ConnectionStatus.Disconnected;
             this.OnDisconnectedAction?.Invoke();
-
-            if (this.state == State.Runnning)
-            {
-                this.connection = default;
-                this.Connect();
-            }
-            else if (this.state == State.Stop)
-            {
-                this.connection = default;
-            }
+            this.connection = default;
         }
+
     }
 }

@@ -1490,9 +1490,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1282001518}
-  - component: {fileID: 1282001519}
   - component: {fileID: 1282001520}
   - component: {fileID: 1282001521}
+  - component: {fileID: 1282001519}
   m_Layer: 0
   m_Name: NetworkManager
   m_TagString: NetworkManager
@@ -1523,7 +1523,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1282001517}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6442dc8070ceb41f094e44de0bf87274, type: 3}
+  m_Script: {fileID: 11500000, guid: 378cd586cdeb64c45a5db87674facc6d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   showGUI: 1
@@ -1929,6 +1929,7 @@ MonoBehaviour:
   m_CaretBlinkRate: 0.85
   m_CaretWidth: 1
   m_ReadOnly: 0
+  m_ShouldActivateOnSelect: 1
 --- !u!114 &1986496792
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Timers;
+using System.Reflection;
 
 namespace Mirror.WebRTC
 {
@@ -29,16 +29,12 @@ namespace Mirror.WebRTC
             this.signalingKey = signalingKey;
             this.roomId = roomId;
 
-            this.StartTimer();
-
             this.Connect();
         }
 
         public void Stop()
         {
             if (this.state == State.Stop) return;
-
-            this.timer.Stop();
 
             this.state = State.Stop;
             this.connection.Disconnect();
@@ -48,19 +44,24 @@ namespace Mirror.WebRTC
         {
             if (!this.IsConnected()) return false;
 
-            this.connection.SendMessage(data);
+            this.connection.SendMessage(MirrorP2PMessage.CreateRawDataMessage(data));
 
             return true;
         }
 
         void Connect()
         {
+            UnityEngine.Debug.Log($"{this.GetType().Name}: {MethodBase.GetCurrentMethod().Name}");
+            this.connectionStatus = ConnectionStatus.Connecting;
+
             if (this.connection == default)
             {
                 var connection = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: roomId);
-                connection.onConnected += this.OnConnected;
-                connection.onDisconnected += this.OnDisconnected;
-                connection.onMessage += this.OnMessage;
+
+                connection.OnConnectedHandler += this.OnConnected;
+                connection.OnDisconnectedHandler += this.OnDisconnected;
+                connection.OnMessageHandler += this.OnMessage;
+                connection.OnRequestHandler += this.OnRequest;
 
                 connection.Connect();
 
@@ -74,8 +75,8 @@ namespace Mirror.WebRTC
 
         public bool Disconnect(int connectionId)
         {
-            if (!this.IsConnected()) return false;
-
+            if (this.connection == default) return false;
+            this.connectionStatus = ConnectionStatus.Disconnected;
             this.connection.Disconnect();
 
             return true;
@@ -90,54 +91,51 @@ namespace Mirror.WebRTC
 
         public bool IsConnected()
         {
+            if (this.connectionStatus != ConnectionStatus.Connected) return false;
             if (this.connection == default) return false;
-            if (!this.connection.IsConnectedAllDataChannel()) return false;
+            if (!this.connection.IsConnected()) return false;
 
             return true;
         }
 
-        void OnMessage(string dataChannelLabel, byte[] bytes)
+        void OnMessage(MirrorP2PMessage message)
         {
-            DataChannelLabelType dataChannelLabelType;
-            if (!Enum.TryParse<DataChannelLabelType>(dataChannelLabel, out dataChannelLabelType)) return;
+            if (this.connectionStatus != ConnectionStatus.Connected) return;
+            this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, message.rawData, MirrorP2PServer.channelId);
+        }
 
-            switch (dataChannelLabelType)
+        void OnRequest(MirrorP2PMessage message)
+        {
+            switch (message.MessageType)
             {
-                case DataChannelLabelType.Mirror:
+                case MirrorP2PMessage.Type.ConnectedConfirmRequest:
                     {
-                        this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, bytes, MirrorP2PServer.channelId);
-
+                        this.connectionStatus = ConnectionStatus.Connected;
+                        this.connection.SendResponce(MirrorP2PMessage.CreateConnectedConfirmResponce(message.Uid));
+                        UnityEngine.Debug.Log($"Server OnConnected");
+                        this.connectionStatus = ConnectionStatus.Connected;
+                        this.OnConnectedAction?.Invoke(MirrorP2PServer.connectionId);
                         break;
                     }
 
-                case DataChannelLabelType.TranportInternal:
-                    {
-                        // TODO:
-                        /*            string text = System.Text.Encoding.UTF8.GetString(bytes);
-            TransportMessages.Message message = JsonUtility.FromJson<TransportMessages.Message>(text);
-            if (!string.IsNullOrEmpty(message.type))
-            {
-                if (message.type == TransportMessages.PongMessage.type) this.OnReceivedPongMessage(JsonUtility.FromJson<TransportMessages.PongMessage>(text));
-                return;
-            }*/
-
-                        break;
-                    }
+                default:
+                    break;
             }
-
         }
 
         void OnConnected()
         {
-            UnityEngine.Debug.Log($"Server OnConnected {MirrorP2PServer.connectionId}");
 
-            this.OnConnectedAction?.Invoke(MirrorP2PServer.connectionId);
         }
 
         void OnDisconnected()
         {
+            this.connectionStatus = ConnectionStatus.Disconnected;
+            this.Disconnect(MirrorP2PServer.connectionId);
+
             this.OnDisconnectedAction?.Invoke(MirrorP2PServer.connectionId);
             UnityEngine.Debug.Log("MirrorP2PServer:OnDisconnected");
+
             if (this.state == State.Runnning)
             {
                 this.Connect();
@@ -147,46 +145,5 @@ namespace Mirror.WebRTC
                 this.connection = default;
             }
         }
-
-        #region timer
-
-        Timer timer = default;
-        DateTime latestPingTime = default;
-        DateTime latestPongTime = default;
-
-        void StartTimer()
-        {
-            if (this.timer == default)
-            {
-                this.timer = new Timer(1000); // 1000 mili sec = 1 sec
-                this.timer.Elapsed += this.Update;
-            }
-
-            this.timer.Start();
-        }
-
-        void StopTimer()
-        {
-            this.timer.Stop();
-        }
-
-        void Update(object sender, ElapsedEventArgs e)
-        {
-            /*            if (this.connection == default) return;
-                        if (!this.connection.IsConnected()) return;
-
-                        TransportMessages.PingMessage pingMessage = new TransportMessages.PingMessage();
-                        if (this.connection.SendMessage(JsonUtility.ToJson(pingMessage)))
-                        {
-                            this.latestPingTime = DateTime.UtcNow;
-                        }*/
-        }
-
-        void OnReceivedPongMessage(TransportMessages.PongMessage pongMessage)
-        {
-            this.latestPongTime = DateTime.UtcNow;
-        }
-
-        #endregion
     }
 }
