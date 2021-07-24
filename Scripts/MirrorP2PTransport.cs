@@ -51,7 +51,8 @@ namespace Mirror.WebRTC
             {
                 // Note: UnityRoomで使う場合
                 //       UnityRoomはStreamingAssetsが使えない。.jsファイルは別途HostingServiceなどでアップしておく必要がある。
-                var url = Path.Combine(Application.streamingAssetsPath, "Ayame.js");
+                // var url = Path.Combine(Application.streamingAssetsPath, "Ayame.js");
+                var url = "https://publicfilehost.web.app/MirrorP2PTransport/Ayame.js";
                 var id = "0";
                 InjectionJs(url, id);
             }
