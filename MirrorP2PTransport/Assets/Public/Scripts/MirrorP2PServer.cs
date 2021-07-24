@@ -37,7 +37,7 @@ namespace Mirror.WebRTC
             if (this.state == State.Stop) return;
 
             this.state = State.Stop;
-            this.connection.Disconnect();
+            this.Disconnect(MirrorP2PServer.channelId);
         }
 
         public bool Send(int connectionId, byte[] data)
@@ -75,9 +75,17 @@ namespace Mirror.WebRTC
 
         public bool Disconnect(int connectionId)
         {
-            if (this.connection == default) return false;
             this.connectionStatus = ConnectionStatus.Disconnected;
-            this.connection.Disconnect();
+
+            if (this.connection != default)
+            {
+                this.connection.OnDisconnectedHandler -= this.OnDisconnected;
+                this.connection.OnConnectedHandler -= this.OnConnected;
+                this.connection.OnMessageHandler -= this.OnMessage;
+                this.connection.OnRequestHandler -= this.OnRequest;
+                this.connection.Disconnect();
+                this.connection = default;
+            }
 
             return true;
         }
@@ -110,9 +118,10 @@ namespace Mirror.WebRTC
             {
                 case MirrorP2PMessage.Type.ConnectedConfirmRequest:
                     {
-                        this.connectionStatus = ConnectionStatus.Connected;
+
                         this.connection.SendResponce(MirrorP2PMessage.CreateConnectedConfirmResponce(message.Uid));
                         UnityEngine.Debug.Log($"Server OnConnected");
+                        if (this.connectionStatus == ConnectionStatus.Connected) break;
                         this.connectionStatus = ConnectionStatus.Connected;
                         this.OnConnectedAction?.Invoke(MirrorP2PServer.connectionId);
                         break;

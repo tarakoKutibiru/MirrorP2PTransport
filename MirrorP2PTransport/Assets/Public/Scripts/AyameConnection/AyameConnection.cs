@@ -7,7 +7,7 @@
         public delegate void OnDisconnectedDelegate();
 
 #if UNITY_WEBGL
-        IAyameConnectionImpl impl=new AyameConnectionWebGLImpl();
+        IAyameConnectionImpl impl = new AyameConnectionWebGLImpl();
 #else
         IAyameConnectionImpl impl = new AyameConnectionImpl();
 #endif
@@ -17,12 +17,15 @@
 
         static readonly AyameConnectionImplConstants.DataChannelSetting DataChannelSetting = new AyameConnectionImplConstants.DataChannelSetting(0, "mirror");
 
-        public void Connect(string signalingURL, string signalingKey, string roomId, float timeOut)
+        public AyameConnection()
         {
             this.impl.OnConnectedHandler += this.OnConnected;
-            this.impl.OnMessageHandler += (string dataChannelLabel, byte[] rawData) => { this.OnMessageHandler?.Invoke(rawData); };
-            this.impl.OnDisconnectedHandler += () => { this.OnDisconnectedHandler?.Invoke(); };
+            this.impl.OnMessageHandler += this.OnMessage;
+            this.impl.OnDisconnectedHandler += this.OnDisconnected;
+        }
 
+        public void Connect(string signalingURL, string signalingKey, string roomId, float timeOut)
+        {
             var dataChannelSettings = new AyameConnectionImplConstants.DataChannelSetting[] { DataChannelSetting };
             var settings = new AyameConnectionImplConstants.ConnectSetting(signalingURL, signalingKey, roomId, dataChannelSettings, timeOut);
             this.impl.Connect(settings);
@@ -49,6 +52,16 @@
             if (DataChannelSetting.Id != dataChannelSetting.Id) return;
 
             this.OnConnectedHandler?.Invoke();
+        }
+
+        void OnMessage(string dataChannelLabel, byte[] rawData)
+        {
+            this.OnMessageHandler?.Invoke(rawData);
+        }
+
+        void OnDisconnected()
+        {
+            this.OnDisconnectedHandler?.Invoke();
         }
     }
 }

@@ -16,8 +16,6 @@ function Connect(signalingUrl, roomId, signalingKey,dataChannelLabel,dataChannel
         connection.on('open', async (e) => {
             var dataChannelOptions = {
                 ordered: true,
-                // negotiated: true,
-                // id: dataChannelId
               };
             var channel = await connection.createDataChannel(dataChannelLabel,dataChannelOptions);
             if (channel) { OnConnected(channel); }
@@ -26,7 +24,6 @@ function Connect(signalingUrl, roomId, signalingKey,dataChannelLabel,dataChannel
         connection.on('disconnect', (e) => {
             console.log(e);
             OnDisconnected();
-            dataChannel = null;
         });
         await connection.connect(null);
     };
@@ -36,7 +33,10 @@ function Connect(signalingUrl, roomId, signalingKey,dataChannelLabel,dataChannel
 
 function Disconnect() {
     if (connection) {
+        if (dataChannel) connection.removeDataChannel(dataChannel.label);
         connection.disconnect();
+        dataChannel = null;
+        connection = null;
     }
 }
 
@@ -46,11 +46,15 @@ function SendData(data) {
 }
 
 function IsConnectedDataChannel() {
-    return dataChannel && dataChannel.readyState === 'open';
+    console.log(`Ayame.js: IsConnectedDataChannel, dataChannel: ${dataChannel!==null}, readyState: ${dataChannel.readyState}`);
+    if (dataChannel === null) return false;
+    if (dataChannel.readyState === 'open') return true;
+    if (dataChannel.readyState === `connecting`) return true;
+    return false;
 }
 
 function OnConnected(channel) {
-    console.log("Ayame.js: OnConnected.");
+    console.log(`Ayame.js: OnConnected. label: ${channel.label}, id: ${channel.id}, readState: ${channel.readyState}`);
     if (dataChannel) return;
     dataChannel = channel;
     dataChannel.onmessage = OnMessage;
@@ -63,6 +67,8 @@ function OnConnected(channel) {
 }
 
 function OnDisconnected() {
+    dataChannel = null;
+    connection = null;
     unityInstance.SendMessage(
         'AyameEventReceiver',
         'OnEvent',
@@ -71,7 +77,6 @@ function OnDisconnected() {
 }
 
 function OnMessage(e) {
-    // var ptr = ArrayToReturnPtr(e.data, Uint8Array);
     let v = btoa(String.fromCharCode(...new Uint8Array(e.data)));
     unityInstance.SendMessage(
         'AyameEventReceiver',

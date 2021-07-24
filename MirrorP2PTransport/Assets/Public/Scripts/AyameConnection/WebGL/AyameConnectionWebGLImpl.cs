@@ -28,6 +28,24 @@ namespace Mirror.WebRTC
             public static extern void InjectionJs(string url, string id);
         }
 
+        AyameConnectionImplConstants.ConnectSetting connectSetting = default;
+
+        public AyameConnectionWebGLImpl()
+        {
+            var eventReceiver = AyameEventReceiver.GetInstance();
+            eventReceiver.ConnectedHandler += this.OnConnected;
+            eventReceiver.DisconnectedHandler += this.OnDisconnected;
+            eventReceiver.MessageHandler += this.OnMessage;
+        }
+
+        ~AyameConnectionWebGLImpl()
+        {
+            var eventReceiver = AyameEventReceiver.GetInstance();
+            eventReceiver.ConnectedHandler -= this.OnConnected;
+            eventReceiver.DisconnectedHandler -= this.OnDisconnected;
+            eventReceiver.MessageHandler -= this.OnMessage;
+        }
+
         public AyameConnectionImplConstants.OnMessageDelegate OnMessageHandler { get; set; }
         public AyameConnectionImplConstants.OnConnectedDelegate OnConnectedHandler { get; set; }
         public AyameConnectionImplConstants.OnDisconnectedDelegate OnDisconnectedHandler { get; set; }
@@ -35,11 +53,7 @@ namespace Mirror.WebRTC
         public void Connect(AyameConnectionImplConstants.ConnectSetting connectSetting)
         {
             UnityEngine.Debug.Log($"{this.GetType().Name}: {MethodBase.GetCurrentMethod().Name}");
-
-            var eventReceiver = AyameEventReceiver.GetInstance();
-            eventReceiver.ConnectedHandler += () => { this.OnConnectedHandler?.Invoke(connectSetting.DataChannelSettings[0]); };
-            eventReceiver.DisconnectedHandler += () => { this.OnDisconnectedHandler?.Invoke(); };
-            eventReceiver.MessageHandler += (data) => { this.OnMessageHandler?.Invoke(connectSetting.DataChannelSettings[0].Label, data); };
+            this.connectSetting = connectSetting;
 
             var dataChannelLabel = connectSetting.DataChannelSettings[0].Label;
             var dataChannelId = connectSetting.DataChannelSettings[0].Id;
@@ -59,6 +73,21 @@ namespace Mirror.WebRTC
         public bool IsConnected(string dataChannelLabel)
         {
             return Ayame.IsConnected() == 1;
+        }
+
+        void OnConnected()
+        {
+            this.OnConnectedHandler?.Invoke(connectSetting.DataChannelSettings[0]);
+        }
+
+        void OnDisconnected()
+        {
+            this.OnDisconnectedHandler?.Invoke();
+        }
+
+        void OnMessage(byte[] data)
+        {
+            this.OnMessageHandler?.Invoke(connectSetting.DataChannelSettings[0].Label, data);
         }
     }
 
