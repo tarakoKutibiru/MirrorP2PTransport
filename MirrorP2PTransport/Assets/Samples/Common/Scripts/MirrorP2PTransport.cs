@@ -15,6 +15,10 @@ namespace Mirror.WebRTC.Samples
                 if (string.IsNullOrEmpty(this.signalingURL)) this.signalingURL = settings.signalingUrl;
                 if (string.IsNullOrEmpty(this.roomId)) this.roomId = settings.roomBaseId + "_" + SceneManager.GetActiveScene().name;
             }
+            else
+            {
+                if (string.IsNullOrEmpty(this.signalingURL)) this.signalingURL = "wss://ayame-labo.shiguredo.jp/signaling";
+            }
 
             base.Awake();
         }

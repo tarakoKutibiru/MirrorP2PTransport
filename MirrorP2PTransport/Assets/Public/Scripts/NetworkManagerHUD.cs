@@ -17,6 +17,7 @@ namespace Mirror.WebRTC
     public class NetworkManagerHUD : MonoBehaviour
     {
         NetworkManager manager;
+        MirrorP2PTransport transport;
 
         /// <summary>
         /// Whether to show the default control HUD at runtime.
@@ -36,6 +37,7 @@ namespace Mirror.WebRTC
         void Awake()
         {
             manager = GetComponent<NetworkManager>();
+            this.transport = GetComponent<MirrorP2PTransport>();
         }
 
         void OnGUI()
@@ -43,7 +45,7 @@ namespace Mirror.WebRTC
             if (!showGUI)
                 return;
 
-            GUILayout.BeginArea(new Rect(10 + offsetX, 40 + offsetY, 215, 9999));
+            GUILayout.BeginArea(new Rect(10 + offsetX, 40 + offsetY, 300, 9999));
             if (!NetworkClient.isConnected && !NetworkServer.active)
             {
                 StartButtons();
@@ -82,17 +84,25 @@ namespace Mirror.WebRTC
                     manager.StartHost();
                 }
 
-                // Client + IP
-                GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Client"))
                 {
                     manager.StartClient();
                 }
-                manager.networkAddress = GUILayout.TextField(manager.networkAddress);
-                GUILayout.EndHorizontal();
 
-                // Server Only
-                if (GUILayout.Button("Server Only")) manager.StartServer();
+                GUILayout.BeginVertical();
+                GUILayout.Label("SignalingURL");
+                this.transport.signalingURL = GUILayout.TextField(this.transport.signalingURL);
+                GUILayout.EndVertical();
+
+                GUILayout.BeginVertical();
+                GUILayout.Label("SignalingKey");
+                this.transport.signalingKey = GUILayout.TextField(this.transport.signalingKey);
+                GUILayout.EndVertical();
+
+                GUILayout.BeginVertical();
+                GUILayout.Label("roomId");
+                this.transport.roomId = GUILayout.TextField(this.transport.roomId);
+                GUILayout.EndVertical();
             }
             else
             {
