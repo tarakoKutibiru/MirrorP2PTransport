@@ -14,6 +14,13 @@ namespace Mirror.WebRTC
         public string signalingKey = null;
         public string roomId = null;
 
+        [Tooltip("for webgl settings")]
+#if UNITY_WEBGL
+#else
+        [HideInInspector]
+#endif
+        [SerializeField] string ayameJsURL = "StreamingAssets/Ayame.js";
+
         MirrorP2PClient client = null;
         MirrorP2PServer server = null;
 
@@ -52,7 +59,7 @@ namespace Mirror.WebRTC
                 // Note: UnityRoomで使う場合
                 //       UnityRoomはStreamingAssetsが使えない。.jsファイルは別途HostingServiceなどでアップしておく必要がある。
                 // var url = Path.Combine(Application.streamingAssetsPath, "Ayame.js");
-                var url = "https://publicfilehost.web.app/MirrorP2PTransport/Ayame.js";
+                var url = ayameJsURL;
                 var id = "0";
                 InjectionJs(url, id);
             }

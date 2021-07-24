@@ -1329,6 +1329,7 @@ MonoBehaviour:
   m_CaretBlinkRate: 0.85
   m_CaretWidth: 1
   m_ReadOnly: 0
+  m_ShouldActivateOnSelect: 1
 --- !u!114 &851154182
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1560,6 +1561,7 @@ MonoBehaviour:
   m_CaretBlinkRate: 0.85
   m_CaretWidth: 1
   m_ReadOnly: 0
+  m_ShouldActivateOnSelect: 1
 --- !u!114 &1027272350
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1997,6 +1999,7 @@ MonoBehaviour:
   m_CaretBlinkRate: 0.85
   m_CaretWidth: 1
   m_ReadOnly: 0
+  m_ShouldActivateOnSelect: 1
 --- !u!114 &1231350852
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3035,6 +3038,7 @@ MonoBehaviour:
   signalingURL: 
   signalingKey: 
   roomId: 
+  ayameJsURL: StreamingAssets/Ayame.js
 --- !u!114 &1783103025
 MonoBehaviour:
   m_ObjectHideFlags: 0
