@@ -7,6 +7,12 @@ Unityでリアルタイムネットワーク対戦ゲームをP2Pで作るため
 [Mirror](https://github.com/vis2k/Mirror)のTransportの１つです。WebRTCのDataChannelを使ってP2P通信を実現します。
 WebRTCのシグナリングサーバには時雨堂様のAyameを利用しています。非常に実験的でまだ検証兼開発を行っている最中です。
 
+## Sample
+
+2021/07/25にWebGLに対応しました。実際に動作するSampleをブラウザで確認できます。
+
+https://publicfilehost.web.app/MirrorP2PTransport/Samples/
+
 ## 特徴
 
 - Host Client間の接続にWebRTCのDataChannelを使っている。
