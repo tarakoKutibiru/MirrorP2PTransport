@@ -262,6 +262,7 @@ MonoBehaviour:
   signalingURL: 
   signalingKey: 
   roomId: 
+  ayameJsURL: StreamingAssets/Ayame.js
 --- !u!114 &1964711786
 MonoBehaviour:
   m_ObjectHideFlags: 0
