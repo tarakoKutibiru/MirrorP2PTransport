@@ -229,7 +229,7 @@ namespace Mirror.WebRTC
             dataChannel.OnClose += () =>
             {
                 Debug.Log("DataChannelClose");
-                this.dataChannels.Remove(dataChannel);
+                this.dataChannels?.Remove(dataChannel);
             };
             this.dataChannels.Add(dataChannel);
 

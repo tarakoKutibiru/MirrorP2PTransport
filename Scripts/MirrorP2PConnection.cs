@@ -70,6 +70,7 @@ namespace Mirror.WebRTC
 
         public bool IsConnected()
         {
+            if (this.ayameConnection == default) return false;
             return this.ayameConnection.IsConnected();
         }
 

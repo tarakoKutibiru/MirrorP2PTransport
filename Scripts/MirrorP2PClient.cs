@@ -128,9 +128,16 @@ namespace Mirror.WebRTC
                 {
                     this.cts = default;
                 }
+
+                if (!result) return;
+
                 UnityEngine.Debug.Log($"Client OnConnected");
-                this.connectionStatus = ConnectionStatus.Connected;
-                this.OnConnectedAction?.Invoke();
+
+                if (this.connectionStatus != ConnectionStatus.Connected)
+                {
+                    this.connectionStatus = ConnectionStatus.Connected;
+                    this.OnConnectedAction?.Invoke();
+                }
             });
         }
 
