@@ -11,5 +11,6 @@ namespace Mirror.WebRTC.Samples
         public string signalingUrl;
         public string signalingKey;
         public string roomBaseId;
+        public string roomId;
     }
 }

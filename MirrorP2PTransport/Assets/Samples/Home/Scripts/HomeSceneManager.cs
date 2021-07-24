@@ -1,47 +1,43 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 namespace Mirror.WebRTC.Samples
 {
     public class HomeSceneManager : MonoBehaviour
     {
-        private void Awake()
-        {
-            var find = GameObject.FindGameObjectsWithTag("HomeSceneManager");
-            if (1 < find.Length)
-            {
-                Destroy(this);
-                return;
-            }
+        [SerializeField] Canvas signalingView = default;
 
-            DontDestroyOnLoad(this);
+        [SerializeField] InputField url = default;
+        [SerializeField] InputField key = default;
+        [SerializeField] InputField roomId = default;
+
+        enum State
+        {
+            SelectScene,
+            Signaling,
         }
+
+        State state = State.Signaling;
 
         private void Start()
         {
-            SceneManager.sceneLoaded += this.OnSceneLoaded;
-        }
-
-        void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-        {
-            if (scene.name != "HomeScene") return;
-
-            var find = GameObject.FindGameObjectsWithTag("NetworkManager");
-            if (find == default) return;
-            find.ToList().ForEach(x => Destroy(x));
+            this.url.text = MirrorP2PTransport.GetSettings().signalingUrl;
+            this.key.text = MirrorP2PTransport.GetSettings().signalingKey;
+            this.roomId.text = MirrorP2PTransport.GetSettings().roomId;
         }
 
         private void OnGUI()
         {
-            if (SceneManager.GetActiveScene().name == "HomeScene")
+            if (this.state == State.Signaling)
             {
-                this.ShowHomeSceneGUI();
+                this.signalingView.gameObject.SetActive(true);
             }
-            else
+            else if (this.state == State.SelectScene)
             {
-                this.OnReturnButtonGUI();
+                this.signalingView.gameObject.SetActive(false);
+                this.ShowHomeSceneGUI();
             }
         }
 
@@ -84,43 +80,13 @@ namespace Mirror.WebRTC.Samples
             }
         }
 
-        void OnReturnButtonGUI()
+        public void OnApplyButton()
         {
-            GUILayout.BeginArea(new Rect(0, 0, Screen.width, Screen.height));
-            GUILayout.BeginHorizontal();
-            {
-                GUILayout.FlexibleSpace();
+            MirrorP2PTransport.GetSettings().signalingUrl = this.url.text;
+            MirrorP2PTransport.GetSettings().signalingKey = this.key.text;
+            MirrorP2PTransport.GetSettings().roomId = this.roomId.text;
 
-                float mingHeight = Screen.height / 20f;
-                float minWidth = Screen.width / 10f;
-
-                float margin = Screen.width / 100f;
-                GUIStyle buttonStyle = new GUIStyle(GUI.skin.button);
-
-                if (GUILayout.Button("Return", buttonStyle, GUILayout.MinWidth(minWidth), GUILayout.MinHeight(mingHeight)))
-                {
-                    var manager = NetworkManager.singleton;
-                    // stop host if host mode
-                    if (NetworkServer.active && NetworkClient.isConnected)
-                    {
-                        manager.StopHost();
-                    }
-                    // stop client if client-only
-                    else if (NetworkClient.isConnected)
-                    {
-                        manager.StopClient();
-                    }
-                    // stop server if server-only
-                    else if (NetworkServer.active)
-                    {
-                        manager.StopServer();
-                    }
-                    SceneManager.LoadScene("HomeScene");
-                }
-
-            }
-            GUILayout.EndHorizontal();
-            GUILayout.EndArea();
+            this.state = State.SelectScene;
         }
     }
 }
