@@ -1,8 +1,12 @@
 ﻿namespace Mirror.WebRTC.Test.SendMessage
 {
     [System.Serializable]
-    public class Message : MessageBase
+    public struct Message : NetworkMessage
     {
-        public string message = "";
+        public string message;
+        public Message(string message)
+        {
+            this.message = message;
+        }
     }
 }
