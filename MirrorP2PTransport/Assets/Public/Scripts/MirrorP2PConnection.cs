@@ -101,7 +101,7 @@ namespace Mirror.WebRTC
             try
             {
                 var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(timeOutCT.Token, ct);
-                result = await utcs.Task.WithCancellation(linkedTokenSource.Token);
+                result = await utcs.Task.AttachExternalCancellation(linkedTokenSource.Token);
             }
             catch (OperationCanceledException ex)
             {
