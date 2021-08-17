@@ -5,16 +5,19 @@ namespace Mirror.Examples.Chat
     [AddComponentMenu("")]
     public class ChatNetworkManager : NetworkManager
     {
+        [Header("Chat GUI")]
+        public ChatWindow chatWindow;
+
+        // Set by UI element UsernameInput OnValueChanged
         public string PlayerName { get; set; }
 
+        // Called by UI element NetworkAddressInput.OnValueChanged
         public void SetHostname(string hostname)
         {
             networkAddress = hostname;
         }
 
-        public ChatWindow chatWindow;
-
-        public class CreatePlayerMessage : MessageBase
+        public struct CreatePlayerMessage : NetworkMessage
         {
             public string name;
         }

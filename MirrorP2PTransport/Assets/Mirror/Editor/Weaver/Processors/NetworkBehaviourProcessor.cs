@@ -8,8 +8,7 @@ namespace Mirror.Weaver
     {
         Command,
         ClientRpc,
-        TargetRpc,
-        SyncEvent
+        TargetRpc
     }
 
 
@@ -25,24 +24,22 @@ namespace Mirror.Weaver
         readonly List<CmdResult> commands = new List<CmdResult>();
         readonly List<ClientRpcResult> clientRpcs = new List<ClientRpcResult>();
         readonly List<MethodDefinition> targetRpcs = new List<MethodDefinition>();
-        readonly List<EventDefinition> eventRpcs = new List<EventDefinition>();
         readonly List<MethodDefinition> commandInvocationFuncs = new List<MethodDefinition>();
         readonly List<MethodDefinition> clientRpcInvocationFuncs = new List<MethodDefinition>();
         readonly List<MethodDefinition> targetRpcInvocationFuncs = new List<MethodDefinition>();
-        readonly List<MethodDefinition> eventRpcInvocationFuncs = new List<MethodDefinition>();
 
         readonly TypeDefinition netBehaviourSubclass;
 
         public struct CmdResult
         {
             public MethodDefinition method;
-            public bool ignoreAuthority;
+            public bool requiresAuthority;
         }
 
         public struct ClientRpcResult
         {
             public MethodDefinition method;
-            public bool excludeOwner;
+            public bool includeOwner;
         }
 
         public NetworkBehaviourProcessor(TypeDefinition td)
@@ -77,8 +74,6 @@ namespace Mirror.Weaver
             syncObjects = SyncObjectProcessor.FindSyncObjectsFields(netBehaviourSubclass);
 
             ProcessMethods();
-
-            SyncEventProcessor.ProcessEvents(netBehaviourSubclass, eventRpcs, eventRpcInvocationFuncs);
             if (Weaver.WeavingFailed)
             {
                 // originally Process returned true in every case, except if already processed.
@@ -110,12 +105,12 @@ namespace Mirror.Weaver
         public static void WriteClientActiveCheck(ILProcessor worker, string mdName, Instruction label, string errString)
         {
             // client active check
-            worker.Append(worker.Create(OpCodes.Call, WeaverTypes.NetworkClientGetActive));
-            worker.Append(worker.Create(OpCodes.Brtrue, label));
+            worker.Emit(OpCodes.Call, WeaverTypes.NetworkClientGetActive);
+            worker.Emit(OpCodes.Brtrue, label);
 
-            worker.Append(worker.Create(OpCodes.Ldstr, errString + " " + mdName + " called on server."));
-            worker.Append(worker.Create(OpCodes.Call, WeaverTypes.logErrorReference));
-            worker.Append(worker.Create(OpCodes.Ret));
+            worker.Emit(OpCodes.Ldstr, errString + " " + mdName + " called on server.");
+            worker.Emit(OpCodes.Call, WeaverTypes.logErrorReference);
+            worker.Emit(OpCodes.Ret);
             worker.Append(label);
         }
         /*
@@ -126,33 +121,33 @@ namespace Mirror.Weaver
         public static void WriteServerActiveCheck(ILProcessor worker, string mdName, Instruction label, string errString)
         {
             // server active check
-            worker.Append(worker.Create(OpCodes.Call, WeaverTypes.NetworkServerGetActive));
-            worker.Append(worker.Create(OpCodes.Brtrue, label));
+            worker.Emit(OpCodes.Call, WeaverTypes.NetworkServerGetActive);
+            worker.Emit(OpCodes.Brtrue, label);
 
-            worker.Append(worker.Create(OpCodes.Ldstr, errString + " " + mdName + " called on client."));
-            worker.Append(worker.Create(OpCodes.Call, WeaverTypes.logErrorReference));
-            worker.Append(worker.Create(OpCodes.Ret));
+            worker.Emit(OpCodes.Ldstr, errString + " " + mdName + " called on client.");
+            worker.Emit(OpCodes.Call, WeaverTypes.logErrorReference);
+            worker.Emit(OpCodes.Ret);
             worker.Append(label);
         }
 
         public static void WriteSetupLocals(ILProcessor worker)
         {
             worker.Body.InitLocals = true;
-            worker.Body.Variables.Add(new VariableDefinition(WeaverTypes.PooledNetworkWriterType));
+            worker.Body.Variables.Add(new VariableDefinition(WeaverTypes.Import<PooledNetworkWriter>()));
         }
 
         public static void WriteCreateWriter(ILProcessor worker)
         {
             // create writer
-            worker.Append(worker.Create(OpCodes.Call, WeaverTypes.GetPooledWriterReference));
-            worker.Append(worker.Create(OpCodes.Stloc_0));
+            worker.Emit(OpCodes.Call, WeaverTypes.GetPooledWriterReference);
+            worker.Emit(OpCodes.Stloc_0);
         }
 
         public static void WriteRecycleWriter(ILProcessor worker)
         {
             // NetworkWriterPool.Recycle(writer);
-            worker.Append(worker.Create(OpCodes.Ldloc_0));
-            worker.Append(worker.Create(OpCodes.Call, WeaverTypes.RecycleWriterReference));
+            worker.Emit(OpCodes.Ldloc_0);
+            worker.Emit(OpCodes.Call, WeaverTypes.RecycleWriterReference);
         }
 
         public static bool WriteArguments(ILProcessor worker, MethodDefinition method, RemoteCallType callType)
@@ -164,8 +159,8 @@ namespace Mirror.Weaver
             writer.WriteNetworkIdentity(someTarget);
              */
 
-            bool skipFirst = (callType == RemoteCallType.TargetRpc
-                && TargetRpcProcessor.HasNetworkConnectionParameter(method));
+            bool skipFirst = callType == RemoteCallType.TargetRpc
+                && TargetRpcProcessor.HasNetworkConnectionParameter(method);
 
             // arg of calling  function, arg 0 is "this" so start counting at 1
             int argNum = 1;
@@ -194,11 +189,11 @@ namespace Mirror.Weaver
 
                 // use built-in writer func on writer object
                 // NetworkWriter object
-                worker.Append(worker.Create(OpCodes.Ldloc_0));
+                worker.Emit(OpCodes.Ldloc_0);
                 // add argument to call
-                worker.Append(worker.Create(OpCodes.Ldarg, argNum));
+                worker.Emit(OpCodes.Ldarg, argNum);
                 // call writer extension method
-                worker.Append(worker.Create(OpCodes.Call, writeFunc));
+                worker.Emit(OpCodes.Call, writeFunc);
                 argNum += 1;
             }
             return true;
@@ -217,9 +212,9 @@ namespace Mirror.Weaver
         {
             if (!WasProcessed(td))
             {
-                MethodDefinition versionMethod = new MethodDefinition(ProcessedFunctionName, MethodAttributes.Private, WeaverTypes.voidType);
+                MethodDefinition versionMethod = new MethodDefinition(ProcessedFunctionName, MethodAttributes.Private, WeaverTypes.Import(typeof(void)));
                 ILProcessor worker = versionMethod.Body.GetILProcessor();
-                worker.Append(worker.Create(OpCodes.Ret));
+                worker.Emit(OpCodes.Ret);
                 td.Methods.Add(versionMethod);
             }
         }
@@ -227,7 +222,7 @@ namespace Mirror.Weaver
 
         void GenerateConstants()
         {
-            if (commands.Count == 0 && clientRpcs.Count == 0 && targetRpcs.Count == 0 && eventRpcs.Count == 0 && syncObjects.Count == 0)
+            if (commands.Count == 0 && clientRpcs.Count == 0 && targetRpcs.Count == 0 && syncObjects.Count == 0)
                 return;
 
             Weaver.DLog(netBehaviourSubclass, "  GenerateConstants ");
@@ -260,7 +255,7 @@ namespace Mirror.Weaver
                         MethodAttributes.SpecialName |
                         MethodAttributes.RTSpecialName |
                         MethodAttributes.Static,
-                        WeaverTypes.voidType);
+                        WeaverTypes.Import(typeof(void)));
             }
 
             // find instance constructor
@@ -304,11 +299,6 @@ namespace Mirror.Weaver
                 GenerateRegisterRemoteDelegate(cctorWorker, WeaverTypes.registerRpcDelegateReference, targetRpcInvocationFuncs[i], targetRpcs[i].Name);
             }
 
-            for (int i = 0; i < eventRpcs.Count; ++i)
-            {
-                GenerateRegisterRemoteDelegate(cctorWorker, WeaverTypes.registerEventDelegateReference, eventRpcInvocationFuncs[i], eventRpcs[i].Name);
-            }
-
             foreach (FieldDefinition fd in syncObjects)
             {
                 SyncObjectInitializer.GenerateSyncObjectInitializer(ctorWorker, fd);
@@ -333,33 +323,34 @@ namespace Mirror.Weaver
         */
         void GenerateRegisterRemoteDelegate(ILProcessor worker, MethodReference registerMethod, MethodDefinition func, string cmdName)
         {
-            worker.Append(worker.Create(OpCodes.Ldtoken, netBehaviourSubclass));
-            worker.Append(worker.Create(OpCodes.Call, WeaverTypes.getTypeFromHandleReference));
-            worker.Append(worker.Create(OpCodes.Ldstr, cmdName));
-            worker.Append(worker.Create(OpCodes.Ldnull));
-            worker.Append(worker.Create(OpCodes.Ldftn, func));
+            worker.Emit(OpCodes.Ldtoken, netBehaviourSubclass);
+            worker.Emit(OpCodes.Call, WeaverTypes.getTypeFromHandleReference);
+            worker.Emit(OpCodes.Ldstr, cmdName);
+            worker.Emit(OpCodes.Ldnull);
+            worker.Emit(OpCodes.Ldftn, func);
 
-            worker.Append(worker.Create(OpCodes.Newobj, WeaverTypes.CmdDelegateConstructor));
+            worker.Emit(OpCodes.Newobj, WeaverTypes.CmdDelegateConstructor);
             //
-            worker.Append(worker.Create(OpCodes.Call, registerMethod));
+            worker.Emit(OpCodes.Call, registerMethod);
         }
 
         void GenerateRegisterCommandDelegate(ILProcessor worker, MethodReference registerMethod, MethodDefinition func, CmdResult cmdResult)
         {
             string cmdName = cmdResult.method.Name;
-            bool ignoreAuthority = cmdResult.ignoreAuthority;
+            bool requiresAuthority = cmdResult.requiresAuthority;
 
-            worker.Append(worker.Create(OpCodes.Ldtoken, netBehaviourSubclass));
-            worker.Append(worker.Create(OpCodes.Call, WeaverTypes.getTypeFromHandleReference));
-            worker.Append(worker.Create(OpCodes.Ldstr, cmdName));
-            worker.Append(worker.Create(OpCodes.Ldnull));
-            worker.Append(worker.Create(OpCodes.Ldftn, func));
+            worker.Emit(OpCodes.Ldtoken, netBehaviourSubclass);
+            worker.Emit(OpCodes.Call, WeaverTypes.getTypeFromHandleReference);
+            worker.Emit(OpCodes.Ldstr, cmdName);
+            worker.Emit(OpCodes.Ldnull);
+            worker.Emit(OpCodes.Ldftn, func);
 
-            worker.Append(worker.Create(OpCodes.Newobj, WeaverTypes.CmdDelegateConstructor));
+            worker.Emit(OpCodes.Newobj, WeaverTypes.CmdDelegateConstructor);
 
-            worker.Append(worker.Create(ignoreAuthority ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0));
+            // requiresAuthority ? 1 : 0
+            worker.Emit(requiresAuthority ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
 
-            worker.Append(worker.Create(OpCodes.Call, registerMethod));
+            worker.Emit(OpCodes.Call, registerMethod);
         }
 
         void GenerateSerialization()
@@ -378,50 +369,50 @@ namespace Mirror.Weaver
 
             MethodDefinition serialize = new MethodDefinition(SerializeMethodName,
                     MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.HideBySig,
-                    WeaverTypes.boolType);
+                    WeaverTypes.Import<bool>());
 
-            serialize.Parameters.Add(new ParameterDefinition("writer", ParameterAttributes.None, Weaver.CurrentAssembly.MainModule.ImportReference(WeaverTypes.NetworkWriterType)));
-            serialize.Parameters.Add(new ParameterDefinition("forceAll", ParameterAttributes.None, WeaverTypes.boolType));
+            serialize.Parameters.Add(new ParameterDefinition("writer", ParameterAttributes.None, WeaverTypes.Import<NetworkWriter>()));
+            serialize.Parameters.Add(new ParameterDefinition("forceAll", ParameterAttributes.None, WeaverTypes.Import<bool>()));
             ILProcessor worker = serialize.Body.GetILProcessor();
 
             serialize.Body.InitLocals = true;
 
             // loc_0,  this local variable is to determine if any variable was dirty
-            VariableDefinition dirtyLocal = new VariableDefinition(WeaverTypes.boolType);
+            VariableDefinition dirtyLocal = new VariableDefinition(WeaverTypes.Import<bool>());
             serialize.Body.Variables.Add(dirtyLocal);
 
             MethodReference baseSerialize = Resolvers.TryResolveMethodInParents(netBehaviourSubclass.BaseType, Weaver.CurrentAssembly, SerializeMethodName);
             if (baseSerialize != null)
             {
                 // base
-                worker.Append(worker.Create(OpCodes.Ldarg_0));
+                worker.Emit(OpCodes.Ldarg_0);
                 // writer
-                worker.Append(worker.Create(OpCodes.Ldarg_1));
+                worker.Emit(OpCodes.Ldarg_1);
                 // forceAll
-                worker.Append(worker.Create(OpCodes.Ldarg_2));
-                worker.Append(worker.Create(OpCodes.Call, baseSerialize));
+                worker.Emit(OpCodes.Ldarg_2);
+                worker.Emit(OpCodes.Call, baseSerialize);
                 // set dirtyLocal to result of base.OnSerialize()
-                worker.Append(worker.Create(OpCodes.Stloc_0));
+                worker.Emit(OpCodes.Stloc_0);
             }
 
             // Generates: if (forceAll);
             Instruction initialStateLabel = worker.Create(OpCodes.Nop);
             // forceAll
-            worker.Append(worker.Create(OpCodes.Ldarg_2));
-            worker.Append(worker.Create(OpCodes.Brfalse, initialStateLabel));
+            worker.Emit(OpCodes.Ldarg_2);
+            worker.Emit(OpCodes.Brfalse, initialStateLabel);
 
             foreach (FieldDefinition syncVar in syncVars)
             {
                 // Generates a writer call for each sync variable
                 // writer
-                worker.Append(worker.Create(OpCodes.Ldarg_1));
+                worker.Emit(OpCodes.Ldarg_1);
                 // this
-                worker.Append(worker.Create(OpCodes.Ldarg_0));
-                worker.Append(worker.Create(OpCodes.Ldfld, syncVar));
+                worker.Emit(OpCodes.Ldarg_0);
+                worker.Emit(OpCodes.Ldfld, syncVar);
                 MethodReference writeFunc = Writers.GetWriteFunc(syncVar.FieldType);
                 if (writeFunc != null)
                 {
-                    worker.Append(worker.Create(OpCodes.Call, writeFunc));
+                    worker.Emit(OpCodes.Call, writeFunc);
                 }
                 else
                 {
@@ -433,8 +424,8 @@ namespace Mirror.Weaver
             // always return true if forceAll
 
             // Generates: return true
-            worker.Append(worker.Create(OpCodes.Ldc_I4_1));
-            worker.Append(worker.Create(OpCodes.Ret));
+            worker.Emit(OpCodes.Ldc_I4_1);
+            worker.Emit(OpCodes.Ret);
 
             // Generates: end if (forceAll);
             worker.Append(initialStateLabel);
@@ -442,41 +433,41 @@ namespace Mirror.Weaver
             // write dirty bits before the data fields
             // Generates: writer.WritePackedUInt64 (base.get_syncVarDirtyBits ());
             // writer
-            worker.Append(worker.Create(OpCodes.Ldarg_1));
+            worker.Emit(OpCodes.Ldarg_1);
             // base
-            worker.Append(worker.Create(OpCodes.Ldarg_0));
-            worker.Append(worker.Create(OpCodes.Call, WeaverTypes.NetworkBehaviourDirtyBitsReference));
-            MethodReference writeUint64Func = Writers.GetWriteFunc(WeaverTypes.uint64Type);
-            worker.Append(worker.Create(OpCodes.Call, writeUint64Func));
+            worker.Emit(OpCodes.Ldarg_0);
+            worker.Emit(OpCodes.Call, WeaverTypes.NetworkBehaviourDirtyBitsReference);
+            MethodReference writeUint64Func = Writers.GetWriteFunc(WeaverTypes.Import<ulong>());
+            worker.Emit(OpCodes.Call, writeUint64Func);
 
             // generate a writer call for any dirty variable in this class
 
             // start at number of syncvars in parent
-            int dirtyBit = Weaver.GetSyncVarStart(netBehaviourSubclass.BaseType.FullName);
+            int dirtyBit = Weaver.WeaveLists.GetSyncVarStart(netBehaviourSubclass.BaseType.FullName);
             foreach (FieldDefinition syncVar in syncVars)
             {
                 Instruction varLabel = worker.Create(OpCodes.Nop);
 
                 // Generates: if ((base.get_syncVarDirtyBits() & 1uL) != 0uL)
                 // base
-                worker.Append(worker.Create(OpCodes.Ldarg_0));
-                worker.Append(worker.Create(OpCodes.Call, WeaverTypes.NetworkBehaviourDirtyBitsReference));
+                worker.Emit(OpCodes.Ldarg_0);
+                worker.Emit(OpCodes.Call, WeaverTypes.NetworkBehaviourDirtyBitsReference);
                 // 8 bytes = long
-                worker.Append(worker.Create(OpCodes.Ldc_I8, 1L << dirtyBit));
-                worker.Append(worker.Create(OpCodes.And));
-                worker.Append(worker.Create(OpCodes.Brfalse, varLabel));
+                worker.Emit(OpCodes.Ldc_I8, 1L << dirtyBit);
+                worker.Emit(OpCodes.And);
+                worker.Emit(OpCodes.Brfalse, varLabel);
 
                 // Generates a call to the writer for that field
                 // writer
-                worker.Append(worker.Create(OpCodes.Ldarg_1));
+                worker.Emit(OpCodes.Ldarg_1);
                 // base
-                worker.Append(worker.Create(OpCodes.Ldarg_0));
-                worker.Append(worker.Create(OpCodes.Ldfld, syncVar));
+                worker.Emit(OpCodes.Ldarg_0);
+                worker.Emit(OpCodes.Ldfld, syncVar);
 
                 MethodReference writeFunc = Writers.GetWriteFunc(syncVar.FieldType);
                 if (writeFunc != null)
                 {
-                    worker.Append(worker.Create(OpCodes.Call, writeFunc));
+                    worker.Emit(OpCodes.Call, writeFunc);
                 }
                 else
                 {
@@ -485,9 +476,9 @@ namespace Mirror.Weaver
                 }
 
                 // something was dirty
-                worker.Append(worker.Create(OpCodes.Ldc_I4_1));
+                worker.Emit(OpCodes.Ldc_I4_1);
                 // set dirtyLocal to true
-                worker.Append(worker.Create(OpCodes.Stloc_0));
+                worker.Emit(OpCodes.Stloc_0);
 
                 worker.Append(varLabel);
                 dirtyBit += 1;
@@ -495,13 +486,13 @@ namespace Mirror.Weaver
 
             if (Weaver.GenerateLogErrors)
             {
-                worker.Append(worker.Create(OpCodes.Ldstr, "Injected Serialize " + netBehaviourSubclass.Name));
-                worker.Append(worker.Create(OpCodes.Call, WeaverTypes.logErrorReference));
+                worker.Emit(OpCodes.Ldstr, "Injected Serialize " + netBehaviourSubclass.Name);
+                worker.Emit(OpCodes.Call, WeaverTypes.logErrorReference);
             }
 
             // generate: return dirtyLocal
-            worker.Append(worker.Create(OpCodes.Ldloc_0));
-            worker.Append(worker.Create(OpCodes.Ret));
+            worker.Emit(OpCodes.Ldloc_0);
+            worker.Emit(OpCodes.Ret);
             netBehaviourSubclass.Methods.Add(serialize);
         }
 
@@ -510,7 +501,11 @@ namespace Mirror.Weaver
             // check for Hook function
             MethodDefinition hookMethod = SyncVarProcessor.GetHookMethod(netBehaviourSubclass, syncVar);
 
-            if (IsNetworkIdentityField(syncVar))
+            if (syncVar.FieldType.IsDerivedFrom<NetworkBehaviour>())
+            {
+                DeserializeNetworkBehaviourField(syncVar, worker, deserialize, hookMethod);
+            }
+            else if (syncVar.FieldType.IsNetworkIdentityField())
             {
                 DeserializeNetworkIdentityField(syncVar, worker, deserialize, hookMethod);
             }
@@ -518,17 +513,6 @@ namespace Mirror.Weaver
             {
                 DeserializeNormalField(syncVar, worker, deserialize, hookMethod);
             }
-        }
-
-        /// <summary>
-        /// Is the field a NetworkIdentity or GameObject
-        /// </summary>
-        /// <param name="syncVar"></param>
-        /// <returns></returns>
-        static bool IsNetworkIdentityField(FieldDefinition syncVar)
-        {
-            return syncVar.FieldType.FullName == WeaverTypes.gameObjectType.FullName ||
-                   syncVar.FieldType.FullName == WeaverTypes.NetworkIdentityType.FullName;
         }
 
         /// <summary>
@@ -562,18 +546,18 @@ namespace Mirror.Weaver
             FieldDefinition netIdField = syncVarNetIds[syncVar];
 
             // uint oldNetId = ___qNetId;
-            VariableDefinition oldNetId = new VariableDefinition(WeaverTypes.uint32Type);
+            VariableDefinition oldNetId = new VariableDefinition(WeaverTypes.Import<uint>());
             deserialize.Body.Variables.Add(oldNetId);
-            worker.Append(worker.Create(OpCodes.Ldarg_0));
-            worker.Append(worker.Create(OpCodes.Ldfld, netIdField));
-            worker.Append(worker.Create(OpCodes.Stloc, oldNetId));
+            worker.Emit(OpCodes.Ldarg_0);
+            worker.Emit(OpCodes.Ldfld, netIdField);
+            worker.Emit(OpCodes.Stloc, oldNetId);
 
             // GameObject/NetworkIdentity oldSyncVar = syncvar.getter;
             VariableDefinition oldSyncVar = new VariableDefinition(syncVar.FieldType);
             deserialize.Body.Variables.Add(oldSyncVar);
-            worker.Append(worker.Create(OpCodes.Ldarg_0));
-            worker.Append(worker.Create(OpCodes.Ldfld, syncVar));
-            worker.Append(worker.Create(OpCodes.Stloc, oldSyncVar));
+            worker.Emit(OpCodes.Ldarg_0);
+            worker.Emit(OpCodes.Ldfld, syncVar);
+            worker.Emit(OpCodes.Stloc, oldSyncVar);
 
             // read id and store in netId field BEFORE calling the hook
             // -> this makes way more sense. by definition, the hook is
@@ -585,13 +569,13 @@ namespace Mirror.Weaver
             //    values BEFORE the hook even returned and hence BEFORE the
             //    actual value was even set.
             // put 'this.' onto stack for 'this.netId' below
-            worker.Append(worker.Create(OpCodes.Ldarg_0));
+            worker.Emit(OpCodes.Ldarg_0);
             // reader. for 'reader.Read()' below
-            worker.Append(worker.Create(OpCodes.Ldarg_1));
+            worker.Emit(OpCodes.Ldarg_1);
             // Read()
-            worker.Append(worker.Create(OpCodes.Call, Readers.GetReadFunc(WeaverTypes.uint32Type)));
+            worker.Emit(OpCodes.Call, Readers.GetReadFunc(WeaverTypes.Import<uint>()));
             // netId
-            worker.Append(worker.Create(OpCodes.Stfld, netIdField));
+            worker.Emit(OpCodes.Stfld, netIdField);
 
             if (hookMethod != null)
             {
@@ -617,17 +601,17 @@ namespace Mirror.Weaver
                 Instruction syncVarEqualLabel = worker.Create(OpCodes.Nop);
 
                 // 'this.' for 'this.SyncVarEqual'
-                worker.Append(worker.Create(OpCodes.Ldarg_0));
+                worker.Emit(OpCodes.Ldarg_0);
                 // 'oldNetId'
-                worker.Append(worker.Create(OpCodes.Ldloc, oldNetId));
+                worker.Emit(OpCodes.Ldloc, oldNetId);
                 // 'ref this.__netId'
-                worker.Append(worker.Create(OpCodes.Ldarg_0));
-                worker.Append(worker.Create(OpCodes.Ldflda, netIdField));
+                worker.Emit(OpCodes.Ldarg_0);
+                worker.Emit(OpCodes.Ldflda, netIdField);
                 // call the function
                 GenericInstanceMethod syncVarEqualGm = new GenericInstanceMethod(WeaverTypes.syncVarEqualReference);
                 syncVarEqualGm.GenericArguments.Add(netIdField.FieldType);
-                worker.Append(worker.Create(OpCodes.Call, syncVarEqualGm));
-                worker.Append(worker.Create(OpCodes.Brtrue, syncVarEqualLabel));
+                worker.Emit(OpCodes.Call, syncVarEqualGm);
+                worker.Emit(OpCodes.Brtrue, syncVarEqualLabel);
 
                 // call the hook
                 // Generates: OnValueChanged(oldValue, this.syncVar);
@@ -637,6 +621,115 @@ namespace Mirror.Weaver
                 worker.Append(syncVarEqualLabel);
             }
         }
+
+        /// <summary>
+        /// [SyncVar] NetworkBehaviour
+        /// </summary>
+        /// <param name="syncVar"></param>
+        /// <param name="worker"></param>
+        /// <param name="deserialize"></param>
+        /// <param name="initialState"></param>
+        /// <param name="hookResult"></param>
+        void DeserializeNetworkBehaviourField(FieldDefinition syncVar, ILProcessor worker, MethodDefinition deserialize, MethodDefinition hookMethod)
+        {
+            /*
+            Generates code like:
+               uint oldNetId = ___qNetId.netId;
+               byte oldCompIndex = ___qNetId.componentIndex;
+               T oldSyncVar = syncvar.getter;
+               ___qNetId.netId = reader.ReadPackedUInt32();
+               ___qNetId.componentIndex = reader.ReadByte();
+               if (!SyncVarEqual(oldNetId, ref ___goNetId))
+               {
+                   // getter returns GetSyncVarGameObject(___qNetId)
+                   OnSetQ(oldSyncVar, syncvar.getter);
+               }
+            */
+
+            // GameObject/NetworkIdentity SyncVar:
+            //   OnSerialize sends writer.Write(go);
+            //   OnDeserialize reads to __netId manually so we can use
+            //     lookups in the getter (so it still works if objects
+            //     move in and out of range repeatedly)
+            FieldDefinition netIdField = syncVarNetIds[syncVar];
+
+            // uint oldNetId = ___qNetId;
+            VariableDefinition oldNetId = new VariableDefinition(WeaverTypes.Import<NetworkBehaviour.NetworkBehaviourSyncVar>());
+            deserialize.Body.Variables.Add(oldNetId);
+            worker.Emit(OpCodes.Ldarg_0);
+            worker.Emit(OpCodes.Ldfld, netIdField);
+            worker.Emit(OpCodes.Stloc, oldNetId);
+
+            // GameObject/NetworkIdentity oldSyncVar = syncvar.getter;
+            VariableDefinition oldSyncVar = new VariableDefinition(syncVar.FieldType);
+            deserialize.Body.Variables.Add(oldSyncVar);
+            worker.Emit(OpCodes.Ldarg_0);
+            worker.Emit(OpCodes.Ldfld, syncVar);
+            worker.Emit(OpCodes.Stloc, oldSyncVar);
+
+            // read id and store in netId field BEFORE calling the hook
+            // -> this makes way more sense. by definition, the hook is
+            //    supposed to be called after it was changed. not before.
+            // -> setting it BEFORE calling the hook fixes the following bug:
+            //    https://github.com/vis2k/Mirror/issues/1151 in host mode
+            //    where the value during the Hook call would call Cmds on
+            //    the host server, and they would all happen and compare
+            //    values BEFORE the hook even returned and hence BEFORE the
+            //    actual value was even set.
+            // put 'this.' onto stack for 'this.netId' below
+            worker.Emit(OpCodes.Ldarg_0);
+            // reader. for 'reader.Read()' below
+            worker.Emit(OpCodes.Ldarg_1);
+            // Read()
+            worker.Emit(OpCodes.Call, Readers.GetReadFunc(WeaverTypes.Import<NetworkBehaviour.NetworkBehaviourSyncVar>()));
+            // netId
+            worker.Emit(OpCodes.Stfld, netIdField);
+
+            if (hookMethod != null)
+            {
+                // call Hook(this.GetSyncVarGameObject/NetworkIdentity(reader.ReadPackedUInt32()))
+                // because we send/receive the netID, not the GameObject/NetworkIdentity
+                // but only if SyncVar changed. otherwise a client would
+                // get hook calls for all initial values, even if they
+                // didn't change from the default values on the client.
+                // see also: https://github.com/vis2k/Mirror/issues/1278
+
+                // IMPORTANT: for GameObjects/NetworkIdentities we usually
+                //            use SyncVarGameObjectEqual to compare equality.
+                //            in this case however, we can just use
+                //            SyncVarEqual with the two uint netIds.
+                //            => this is easier weaver code because we don't
+                //               have to get the GameObject/NetworkIdentity
+                //               from the uint netId
+                //            => this is faster because we void one
+                //               GetComponent call for GameObjects to get
+                //               their NetworkIdentity when comparing.
+
+                // Generates: if (!SyncVarEqual);
+                Instruction syncVarEqualLabel = worker.Create(OpCodes.Nop);
+
+                // 'this.' for 'this.SyncVarEqual'
+                worker.Emit(OpCodes.Ldarg_0);
+                // 'oldNetId'
+                worker.Emit(OpCodes.Ldloc, oldNetId);
+                // 'ref this.__netId'
+                worker.Emit(OpCodes.Ldarg_0);
+                worker.Emit(OpCodes.Ldflda, netIdField);
+                // call the function
+                GenericInstanceMethod syncVarEqualGm = new GenericInstanceMethod(WeaverTypes.syncVarEqualReference);
+                syncVarEqualGm.GenericArguments.Add(netIdField.FieldType);
+                worker.Emit(OpCodes.Call, syncVarEqualGm);
+                worker.Emit(OpCodes.Brtrue, syncVarEqualLabel);
+
+                // call the hook
+                // Generates: OnValueChanged(oldValue, this.syncVar);
+                SyncVarProcessor.WriteCallHookMethodUsingField(worker, hookMethod, oldSyncVar, syncVar);
+
+                // Generates: end if (!SyncVarEqual);
+                worker.Append(syncVarEqualLabel);
+            }
+        }
+
 
         /// <summary>
         /// [SyncVar] int/float/struct/etc.?
@@ -740,14 +833,14 @@ namespace Mirror.Weaver
 
             MethodDefinition serialize = new MethodDefinition(DeserializeMethodName,
                     MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.HideBySig,
-                    WeaverTypes.voidType);
+                    WeaverTypes.Import(typeof(void)));
 
-            serialize.Parameters.Add(new ParameterDefinition("reader", ParameterAttributes.None, Weaver.CurrentAssembly.MainModule.ImportReference(WeaverTypes.NetworkReaderType)));
-            serialize.Parameters.Add(new ParameterDefinition("initialState", ParameterAttributes.None, WeaverTypes.boolType));
+            serialize.Parameters.Add(new ParameterDefinition("reader", ParameterAttributes.None, WeaverTypes.Import<NetworkReader>()));
+            serialize.Parameters.Add(new ParameterDefinition("initialState", ParameterAttributes.None, WeaverTypes.Import<bool>()));
             ILProcessor serWorker = serialize.Body.GetILProcessor();
             // setup local for dirty bits
             serialize.Body.InitLocals = true;
-            VariableDefinition dirtyBitsLocal = new VariableDefinition(WeaverTypes.int64Type);
+            VariableDefinition dirtyBitsLocal = new VariableDefinition(WeaverTypes.Import<long>());
             serialize.Body.Variables.Add(dirtyBitsLocal);
 
             MethodReference baseDeserialize = Resolvers.TryResolveMethodInParents(netBehaviourSubclass.BaseType, Weaver.CurrentAssembly, DeserializeMethodName);
@@ -780,12 +873,12 @@ namespace Mirror.Weaver
 
             // get dirty bits
             serWorker.Append(serWorker.Create(OpCodes.Ldarg_1));
-            serWorker.Append(serWorker.Create(OpCodes.Call, Readers.GetReadFunc(WeaverTypes.uint64Type)));
+            serWorker.Append(serWorker.Create(OpCodes.Call, Readers.GetReadFunc(WeaverTypes.Import<ulong>())));
             serWorker.Append(serWorker.Create(OpCodes.Stloc_0));
 
             // conditionally read each syncvar
             // start at number of syncvars in parent
-            int dirtyBit = Weaver.GetSyncVarStart(netBehaviourSubclass.BaseType.FullName);
+            int dirtyBit = Weaver.WeaveLists.GetSyncVarStart(netBehaviourSubclass.BaseType.FullName);
             foreach (FieldDefinition syncVar in syncVars)
             {
                 Instruction varLabel = serWorker.Create(OpCodes.Nop);
@@ -820,8 +913,8 @@ namespace Mirror.Weaver
             CallCmdDoSomething(reader.ReadPackedInt32(), reader.ReadNetworkIdentity());
              */
 
-            bool skipFirst = (callType == RemoteCallType.TargetRpc
-                && TargetRpcProcessor.HasNetworkConnectionParameter(method));
+            bool skipFirst = callType == RemoteCallType.TargetRpc
+                && TargetRpcProcessor.HasNetworkConnectionParameter(method);
 
             // arg of calling  function, arg 0 is "this" so start counting at 1
             int argNum = 1;
@@ -850,17 +943,17 @@ namespace Mirror.Weaver
                     return false;
                 }
 
-                worker.Append(worker.Create(OpCodes.Ldarg_1));
-                worker.Append(worker.Create(OpCodes.Call, readFunc));
+                worker.Emit(OpCodes.Ldarg_1);
+                worker.Emit(OpCodes.Call, readFunc);
 
                 // conversion.. is this needed?
-                if (param.ParameterType.FullName == WeaverTypes.singleType.FullName)
+                if (param.ParameterType.Is<float>())
                 {
-                    worker.Append(worker.Create(OpCodes.Conv_R4));
+                    worker.Emit(OpCodes.Conv_R4);
                 }
-                else if (param.ParameterType.FullName == WeaverTypes.doubleType.FullName)
+                else if (param.ParameterType.Is<double>())
                 {
-                    worker.Append(worker.Create(OpCodes.Conv_R8));
+                    worker.Emit(OpCodes.Conv_R8);
                 }
             }
             return true;
@@ -868,10 +961,10 @@ namespace Mirror.Weaver
 
         public static void AddInvokeParameters(ICollection<ParameterDefinition> collection)
         {
-            collection.Add(new ParameterDefinition("obj", ParameterAttributes.None, Weaver.CurrentAssembly.MainModule.ImportReference(WeaverTypes.NetworkBehaviourType)));
-            collection.Add(new ParameterDefinition("reader", ParameterAttributes.None, Weaver.CurrentAssembly.MainModule.ImportReference(WeaverTypes.NetworkReaderType)));
+            collection.Add(new ParameterDefinition("obj", ParameterAttributes.None, WeaverTypes.Import<NetworkBehaviour>()));
+            collection.Add(new ParameterDefinition("reader", ParameterAttributes.None, WeaverTypes.Import<NetworkReader>()));
             // senderConnection is only used for commands but NetworkBehaviour.CmdDelegate is used for all remote calls
-            collection.Add(new ParameterDefinition("senderConnection", ParameterAttributes.None, Weaver.CurrentAssembly.MainModule.ImportReference(WeaverTypes.NetworkConnectionType)));
+            collection.Add(new ParameterDefinition("senderConnection", ParameterAttributes.None, WeaverTypes.Import<NetworkConnectionToClient>()));
         }
 
         // check if a Command/TargetRpc/Rpc function & parameters are valid for weaving
@@ -890,12 +983,12 @@ namespace Mirror.Weaver
         // check if a Command/TargetRpc/Rpc function is valid for weaving
         static bool ValidateFunction(MethodReference md)
         {
-            if (md.ReturnType.FullName == WeaverTypes.IEnumeratorType.FullName)
+            if (md.ReturnType.Is<System.Collections.IEnumerator>())
             {
                 Weaver.Error($"{md.Name} cannot be a coroutine", md);
                 return false;
             }
-            if (md.ReturnType.FullName != WeaverTypes.voidType.FullName)
+            if (!md.ReturnType.Is(typeof(void)))
             {
                 Weaver.Error($"{md.Name} cannot return a value.  Make it void instead", md);
                 return false;
@@ -925,7 +1018,7 @@ namespace Mirror.Weaver
         // validate parameters for a remote function call like Rpc/Cmd
         static bool ValidateParameter(MethodReference method, ParameterDefinition param, RemoteCallType callType, bool firstParam)
         {
-            bool isNetworkConnection = param.ParameterType.FullName == WeaverTypes.NetworkConnectionType.FullName;
+            bool isNetworkConnection = param.ParameterType.Is<NetworkConnection>();
             bool isSenderConnection = IsSenderConnection(param, callType);
 
             if (param.IsOut)
@@ -968,10 +1061,8 @@ namespace Mirror.Weaver
 
             TypeReference type = param.ParameterType;
 
-            const string ConnectionToClient = "Mirror.NetworkConnectionToClient";
-            bool isConnectionToClient = type.FullName == ConnectionToClient || type.Resolve().IsDerivedFrom(ConnectionToClient);
-
-            return isConnectionToClient;
+            return type.Is<NetworkConnectionToClient>()
+                || type.Resolve().IsDerivedFrom<NetworkConnectionToClient>();
         }
 
         void ProcessMethods()
@@ -985,19 +1076,19 @@ namespace Mirror.Weaver
             {
                 foreach (CustomAttribute ca in md.CustomAttributes)
                 {
-                    if (ca.AttributeType.FullName == WeaverTypes.CommandType.FullName)
+                    if (ca.AttributeType.Is<CommandAttribute>())
                     {
                         ProcessCommand(names, md, ca);
                         break;
                     }
 
-                    if (ca.AttributeType.FullName == WeaverTypes.TargetRpcType.FullName)
+                    if (ca.AttributeType.Is<TargetRpcAttribute>())
                     {
                         ProcessTargetRpc(names, md, ca);
                         break;
                     }
 
-                    if (ca.AttributeType.FullName == WeaverTypes.ClientRpcType.FullName)
+                    if (ca.AttributeType.Is<ClientRpcAttribute>())
                     {
                         ProcessClientRpc(names, md, ca);
                         break;
@@ -1025,13 +1116,13 @@ namespace Mirror.Weaver
                 return;
             }
 
-            bool excludeOwner = clientRpcAttr.GetField("excludeOwner", false);
+            bool includeOwner = clientRpcAttr.GetField("includeOwner", true);
 
             names.Add(md.Name);
             clientRpcs.Add(new ClientRpcResult
             {
                 method = md,
-                excludeOwner = excludeOwner
+                includeOwner = includeOwner
             });
 
             MethodDefinition rpcCallFunc = RpcProcessor.ProcessRpcCall(netBehaviourSubclass, md, clientRpcAttr);
@@ -1090,13 +1181,13 @@ namespace Mirror.Weaver
                 return;
             }
 
-            bool ignoreAuthority = commandAttr.GetField("ignoreAuthority", false);
+            bool requiresAuthority = commandAttr.GetField("requiresAuthority", true);
 
             names.Add(md.Name);
             commands.Add(new CmdResult
             {
                 method = md,
-                ignoreAuthority = ignoreAuthority
+                requiresAuthority = requiresAuthority
             });
 
             MethodDefinition cmdCallFunc = CommandProcessor.ProcessCommandCall(netBehaviourSubclass, md, commandAttr);

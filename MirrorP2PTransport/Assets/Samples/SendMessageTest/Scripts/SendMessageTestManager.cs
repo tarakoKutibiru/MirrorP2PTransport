@@ -11,8 +11,8 @@ namespace Mirror.WebRTC.Test.SendMessage
 
         private void Start()
         {
-            NetworkServer.RegisterHandler<Message>(this.OnReceiveMessage);
-            NetworkClient.RegisterHandler<Message>(this.OnReceiveMessage);
+            NetworkServer.RegisterHandler<Message>(this.OnReceiveMessage, false);
+            NetworkClient.RegisterHandler<Message>(this.OnReceiveMessage, false);
         }
 
         public void Send()
