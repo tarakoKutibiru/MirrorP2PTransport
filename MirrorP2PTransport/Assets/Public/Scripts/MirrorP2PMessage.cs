@@ -8,8 +8,6 @@ namespace Mirror.WebRTC
 
         public enum Type
         {
-            Ping,
-            Pong,
             ConnectedConfirmRequest,
             ConnectedConfirmResponce,
             RawData,
@@ -24,16 +22,6 @@ namespace Mirror.WebRTC
             this.Uid = uid;
             this.MessageType = type;
             this.rawData = rawData;
-        }
-
-        static public MirrorP2PMessage CreatePingMessage()
-        {
-            return MirrorP2PMessage.CreateMessage(Type.Ping);
-        }
-
-        static public MirrorP2PMessage CreatePongMessage(int uid)
-        {
-            return new MirrorP2PMessage(uid, Type.Pong);
         }
 
         static public MirrorP2PMessage CreateConnectedConfirmRequest()
