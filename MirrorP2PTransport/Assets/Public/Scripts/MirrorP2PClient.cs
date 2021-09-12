@@ -16,7 +16,10 @@ namespace Mirror.WebRTC
         public string BaseRoomId { get; set; }
         string roomId = default;
 
+        MirrorP2PConnection baseConnection = default;
+
         MirrorP2PConnection connection = default;
+        Common.ConnectionStatus connectionStatus = ConnectionStatus.Disconnected;
 
         CancellationTokenSource cts = default;
 
@@ -45,7 +48,7 @@ namespace Mirror.WebRTC
             if (string.IsNullOrEmpty(this.roomId))
             {
                 var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.BaseRoomId);
-                connection.OnConnectedHandler += () =>
+                connection.OnConnectedHandler = () =>
                 {
                     UniTask.Void(async () =>
                     {
@@ -59,11 +62,14 @@ namespace Mirror.WebRTC
                         this.roomId = connectServerResponse.roomId;
 
                         connection.Disconnect();
+                        this.baseConnection = default;
 
                         // 改めて個別のroomIdでServer(Host)と接続する
                         this.Connect(this.roomId);
                     });
                 };
+                this.baseConnection = connection;
+                this.baseConnection.Connect();
             }
             else if (this.connection == default)
             {

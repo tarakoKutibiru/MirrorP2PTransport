@@ -1,11 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 
 namespace Mirror.WebRTC
 {
     public class MirrorP2PServer : Common
     {
-        static readonly int connectionId = 1;
         static readonly int channelId = 0;
 
         public event Action<int> OnConnectedAction; // connectionId
@@ -17,7 +17,11 @@ namespace Mirror.WebRTC
         string signalingKey;
         string roomId;
 
-        MirrorP2PConnection connection = default;
+        MirrorP2PConnection baseConnection = default;
+        ConnectionStatus BaseConnectionStatus { get; set; } = ConnectionStatus.Disconnected;
+
+        Dictionary<int, MirrorP2PConnection> connections = new Dictionary<int, MirrorP2PConnection>();
+        Dictionary<int, ConnectionStatus> connectionStatus = new Dictionary<int, ConnectionStatus>();
 
         public void Start(string signalingURL, string signalingKey, string roomId)
         {
@@ -29,7 +33,21 @@ namespace Mirror.WebRTC
             this.signalingKey = signalingKey;
             this.roomId = roomId;
 
-            this.Connect();
+            this.baseConnection = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: roomId);
+            baseConnection.OnRequestHandler = (Type type, IRequest request) =>
+            {
+                if (type == typeof(ConnectedConfirmRequest))
+                {
+                    this.baseConnection.SendResponce(MirrorP2PMessage.Create<ConnectedConfirmResponce>(new ConnectedConfirmResponce(request as ConnectedConfirmRequest)));
+                }
+                else if (type == typeof(ConnectServerRequest))
+                {
+                    var newConnectionId = this.connectionStatus.Count + 1; // TODO: ユニーク？
+                    this.baseConnection.SendResponce(MirrorP2PMessage.Create<ConnectServerResponse>(new ConnectServerResponse(request as ConnectServerRequest, this.GenerateRoomId(newConnectionId))));
+                    this.Connect(newConnectionId);
+                }
+            };
+            this.baseConnection.Connect();
         }
 
         public void Stop()
@@ -37,54 +55,72 @@ namespace Mirror.WebRTC
             if (this.state == State.Stop) return;
 
             this.state = State.Stop;
-            this.Disconnect(MirrorP2PServer.channelId);
+
+            this.baseConnection.OnRequestHandler = default;
+            this.baseConnection.Disconnect();
+            this.baseConnection = default;
+            this.DisconnectAll();
         }
 
         public bool Send(int connectionId, byte[] data)
         {
-            if (!this.IsConnected()) return false;
-
-            this.connection.SendMessage(MirrorP2PMessage.Create<RawData>(new RawData(data)));
+            if (!this.IsConnected(connectionId)) return false;
+            this.connections[connectionId].SendMessage(MirrorP2PMessage.Create<RawData>(new RawData(data)));
 
             return true;
         }
 
         void Connect()
         {
+
+        }
+
+        void Connect(int connectionId)
+        {
             UnityEngine.Debug.Log($"{this.GetType().Name}: {MethodBase.GetCurrentMethod().Name}");
-            this.connectionStatus = ConnectionStatus.Connecting;
 
-            if (this.connection == default)
+            this.connectionStatus[connectionId] = ConnectionStatus.Connecting;
+
+            if (this.connections.ContainsKey(connectionId))
             {
-                var connection = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: roomId);
 
-                connection.OnConnectedHandler += this.OnConnected;
-                connection.OnDisconnectedHandler += this.OnDisconnected;
-                connection.OnMessageHandler += this.OnMessage;
-                connection.OnRequestHandler += this.OnRequest;
-
-                connection.Connect();
-
-                this.connection = connection;
             }
             else
             {
+
+                var connection = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: roomId);
+
+                connection.OnConnectedHandler = () => { this.OnConnected(connectionId); };
+                connection.OnDisconnectedHandler = () => { this.OnDisconnected(connectionId); };
+                connection.OnMessageHandler = (RawData rawData) => { this.OnMessage(connectionId, rawData); };
+                connection.OnRequestHandler = (Type type, IRequest request) => { this.OnRequest(connectionId, type, request); };
+
                 connection.Connect();
+
+                this.connections[connectionId] = connection;
+            }
+        }
+
+        public void DisconnectAll()
+        {
+            foreach (var connections in this.connections)
+            {
+                this.Disconnect(connections.Key);
             }
         }
 
         public bool Disconnect(int connectionId)
         {
-            this.connectionStatus = ConnectionStatus.Disconnected;
+            this.connectionStatus[connectionId] = ConnectionStatus.Disconnected;
 
-            if (this.connection != default)
+            if (this.connections[connectionId] != default)
             {
-                this.connection.OnDisconnectedHandler -= this.OnDisconnected;
-                this.connection.OnConnectedHandler -= this.OnConnected;
-                this.connection.OnMessageHandler -= this.OnMessage;
-                this.connection.OnRequestHandler -= this.OnRequest;
-                this.connection.Disconnect();
-                this.connection = default;
+                this.connections[connectionId].OnDisconnectedHandler = default;
+                this.connections[connectionId].OnConnectedHandler = default;
+                this.connections[connectionId].OnMessageHandler = default;
+                this.connections[connectionId].OnRequestHandler = default;
+                this.connections[connectionId].Disconnect();
+                this.connections.Remove(connectionId);
             }
 
             return true;
@@ -97,44 +133,51 @@ namespace Mirror.WebRTC
             return true;
         }
 
-        public bool IsConnected()
+        public bool IsConnected(int connectionid)
         {
-            if (this.connectionStatus != ConnectionStatus.Connected) return false;
-            if (this.connection == default) return false;
-            if (!this.connection.IsConnected()) return false;
+            if (!this.connectionStatus.ContainsKey(connectionid)) return false;
+            if (this.connectionStatus[connectionid] != ConnectionStatus.Connected) return false;
+
+            if (!this.connections.ContainsKey(connectionid)) return false;
+            if (!this.connections[connectionid].IsConnected()) return false;
 
             return true;
         }
 
-        void OnMessage(RawData rawData)
+        void OnMessage(int connectionId, RawData rawData)
         {
-            if (this.connectionStatus != ConnectionStatus.Connected) return;
-            this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, rawData.rawData, MirrorP2PServer.channelId);
+            if (this.connectionStatus[connectionId] != ConnectionStatus.Connected) return;
+            this.OnReceivedDataAction?.Invoke(connectionId, rawData.rawData, MirrorP2PServer.channelId);
         }
 
-        void OnRequest(Type type, IRequest request)
+        void OnRequest(int connectionId, Type type, IRequest request)
         {
             if (type == typeof(ConnectedConfirmRequest))
             {
-                this.connection.SendResponce(MirrorP2PMessage.Create<ConnectedConfirmResponce>(new ConnectedConfirmResponce(request as ConnectedConfirmRequest)));
+                this.connections[connectionId].SendResponce(MirrorP2PMessage.Create<ConnectedConfirmResponce>(new ConnectedConfirmResponce(request as ConnectedConfirmRequest)));
                 UnityEngine.Debug.Log($"Server OnConnected");
-                if (this.connectionStatus == ConnectionStatus.Connected) return;
-                this.connectionStatus = ConnectionStatus.Connected;
-                this.OnConnectedAction?.Invoke(MirrorP2PServer.connectionId);
+                if (this.connectionStatus[connectionId] == ConnectionStatus.Connected) return;
+                this.connectionStatus[connectionId] = ConnectionStatus.Connected;
+                this.OnConnectedAction?.Invoke(connectionId);
             }
         }
 
-        void OnConnected()
+        void OnConnected(int connectionId)
         {
 
         }
 
-        void OnDisconnected()
+        string GenerateRoomId(int connectionId)
         {
-            this.connectionStatus = ConnectionStatus.Disconnected;
-            this.Disconnect(MirrorP2PServer.connectionId);
+            return $"{this.roomId}_{connectionId}";
+        }
 
-            this.OnDisconnectedAction?.Invoke(MirrorP2PServer.connectionId);
+        void OnDisconnected(int connectionId)
+        {
+            this.connectionStatus[connectionId] = ConnectionStatus.Disconnected;
+            this.Disconnect(connectionId);
+
+            this.OnDisconnectedAction?.Invoke(connectionId);
             UnityEngine.Debug.Log("MirrorP2PServer:OnDisconnected");
 
             if (this.state == State.Runnning)
@@ -143,7 +186,7 @@ namespace Mirror.WebRTC
             }
             else if (this.state == State.Stop)
             {
-                this.connection = default;
+                this.connections.Remove(connectionId);
             }
         }
     }
