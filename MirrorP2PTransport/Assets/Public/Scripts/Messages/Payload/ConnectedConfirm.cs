@@ -7,10 +7,6 @@ namespace Mirror.WebRTC
     {
         public Guid Uid => this.uid;
         public readonly Guid uid;
-        public IRequest.RequestType GetRequestType()
-        {
-            return IRequest.RequestType.ConnectedConfirm;
-        }
 
         public ConnectedConfirmRequest()
         {
@@ -22,7 +18,6 @@ namespace Mirror.WebRTC
     public class ConnectedConfirmResponce : IResponse
     {
         public Guid Uid => this.uid;
-
         public readonly Guid uid;
 
         public ConnectedConfirmResponce(ConnectedConfirmRequest request)
