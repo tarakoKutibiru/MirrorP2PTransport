@@ -13,7 +13,8 @@ namespace Mirror.WebRTC
 
         string signalingURL;
         string signalingKey;
-        public string RoomId { get; set; }
+        public string BaseRoomId { get; set; }
+        string roomId = default;
 
         MirrorP2PConnection connection = default;
 
@@ -41,9 +42,48 @@ namespace Mirror.WebRTC
         {
             if (this.IsConnected()) return;
 
+            if (string.IsNullOrEmpty(this.roomId))
+            {
+                var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.BaseRoomId);
+                connection.OnConnectedHandler += () =>
+                {
+                    UniTask.Void(async () =>
+                    {
+                        // 接続確認
+                        var connectedConfirmResponse = await this.Request<ConnectedConfirmRequest, ConnectedConfirmResponce>(connection, new ConnectedConfirmRequest());
+                        if (connectedConfirmResponse == default) return;
+
+                        // 個別のroomIdを取得
+                        var connectServerResponse = await this.Request<ConnectServerRequest, ConnectServerResponse>(connection, new ConnectServerRequest());
+                        if (connectServerResponse == default) return;
+                        this.roomId = connectServerResponse.roomId;
+
+                        connection.Disconnect();
+
+                        // 改めて個別のroomIdでServer(Host)と接続する
+                        this.Connect(this.roomId);
+                    });
+                };
+            }
+            else if (this.connection == default)
+            {
+                this.Connect(this.roomId);
+            }
+            else
+            {
+                this.connection.Connect();
+            }
+
+            this.connectionStatus = ConnectionStatus.Connecting;
+        }
+
+        void Connect(string roomId)
+        {
+            if (this.IsConnected()) return;
+
             if (this.connection == default)
             {
-                var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: this.RoomId);
+                var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: roomId);
                 connection.OnConnectedHandler += this.OnConnected;
                 connection.OnDisconnectedHandler += this.OnDisconnected;
                 connection.OnMessageHandler += this.OnMessage;
@@ -110,26 +150,8 @@ namespace Mirror.WebRTC
 
             UniTask.Void(async () =>
             {
-                this.cts = new CancellationTokenSource();
-                ConnectedConfirmResponce result = default;
-
-                try
-                {
-                    while (result == default && this.state == State.Runnning)
-                    {
-                        result = await this.connection.SendRequest(new ConnectedConfirmRequest(), this.cts.Token) as ConnectedConfirmResponce;
-                    }
-                }
-                catch (OperationCanceledException ex)
-                {
-                    UnityEngine.Debug.Log(ex.Message);
-                }
-                finally
-                {
-                    this.cts = default;
-                }
-
-                if (result == default) return;
+                var response = await this.Request<ConnectedConfirmRequest, ConnectedConfirmResponce>(this.connection, new ConnectedConfirmRequest());
+                if (response == default) return;
 
                 UnityEngine.Debug.Log($"Client OnConnected");
 
@@ -139,6 +161,30 @@ namespace Mirror.WebRTC
                     this.OnConnectedAction?.Invoke();
                 }
             });
+        }
+
+        async UniTask<U> Request<T, U>(MirrorP2PConnection connection, T t) where T : class, IRequest where U : class, IResponse
+        {
+            this.cts = new CancellationTokenSource();
+            U response = default;
+
+            try
+            {
+                while (response == default && this.state == State.Runnning)
+                {
+                    response = await connection.SendRequest(t, this.cts.Token) as U;
+                }
+            }
+            catch (OperationCanceledException ex)
+            {
+                UnityEngine.Debug.Log(ex.Message);
+            }
+            finally
+            {
+                this.cts = default;
+            }
+
+            return response;
         }
 
         protected void OnDisconnected()

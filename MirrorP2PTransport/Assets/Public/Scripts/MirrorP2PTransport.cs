@@ -99,7 +99,7 @@ namespace Mirror.WebRTC
 
         public override bool ClientConnected()
         {
-            this.client.RoomId = this.roomId;
+            this.client.BaseRoomId = this.roomId;
             this.client.Run();
 
             return true;
@@ -107,7 +107,7 @@ namespace Mirror.WebRTC
 
         public override void ClientConnect(string hostname)
         {
-            this.client.RoomId = this.roomId;
+            this.client.BaseRoomId = this.roomId;
             this.client.Run();
         }
 
