@@ -1,6 +1,7 @@
 ﻿using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using UnityEngine;
@@ -9,8 +10,8 @@ namespace Mirror.WebRTC
 {
     public class MirrorP2PConnection
     {
-        public delegate void OnMessageDelegate(MirrorP2PMessage message);
-        public delegate void OnRequestDelegate(MirrorP2PMessage message);
+        public delegate void OnMessageDelegate(RawData rawData);
+        public delegate void OnRequestDelegate(Type type, IRequest message);
         public delegate void OnConnectedDelegate();
         public delegate void OnDisconnectedDelegate();
 
@@ -27,7 +28,7 @@ namespace Mirror.WebRTC
 
         DateTime lastMessagedTime = default;
 
-        Dictionary<int, UniTaskCompletionSource<bool>> utcss = new Dictionary<int, UniTaskCompletionSource<bool>>();
+        Dictionary<Guid, UniTaskCompletionSource<IResponse>> utcss = new Dictionary<Guid, UniTaskCompletionSource<IResponse>>();
 
         public enum State
         {
@@ -77,26 +78,28 @@ namespace Mirror.WebRTC
         public bool SendMessage(MirrorP2PMessage message)
         {
             if (!this.IsConnected()) return false;
-            Debug.Log($"SendMessage: {message.MessageType}");
-            this.ayameConnection.SendMessage(message.ToPayload());
+            Debug.Log($"SendMessage: {message.Type}");
+            this.ayameConnection.SendMessage(message.ToRawData());
 
             return true;
         }
 
-        public async UniTask<bool> SendRequest(MirrorP2PMessage message, CancellationToken ct)
+        public async UniTask<IResponse> SendRequest<T>(T request, CancellationToken ct) where T : IRequest
         {
-            if (this.utcss.ContainsKey(message.Uid)) return false;
+            if (this.utcss.ContainsKey(request.Uid)) return default;
 
             CancellationTokenSource timeOutCT = new CancellationTokenSource();
             timeOutCT.CancelAfterSlim(TimeSpan.FromSeconds(3));
 
-            var utcs = new UniTaskCompletionSource<bool>();
-            this.utcss[message.Uid] = utcs;
+            var utcs = new UniTaskCompletionSource<IResponse>();
+            this.utcss[request.Uid] = utcs;
 
-            Debug.Log($"SendRequest: {message.MessageType}");
-            this.ayameConnection.SendMessage(message.ToPayload());
+            var message = MirrorP2PMessage.Create<T>(request);
 
-            bool result = false;
+            Debug.Log($"SendRequest: {message.Type}");
+            this.ayameConnection.SendMessage(message.ToRawData());
+
+            IResponse result = default;
 
             try
             {
@@ -107,14 +110,14 @@ namespace Mirror.WebRTC
             {
                 if (timeOutCT.IsCancellationRequested)
                 {
-                    return false;
+                    return default;
                 }
 
                 throw ex;
             }
             finally
             {
-                this.utcss.Remove(message.Uid);
+                this.utcss.Remove(request.Uid);
             }
 
             return result;
@@ -127,33 +130,23 @@ namespace Mirror.WebRTC
 
         void OnMessage(byte[] bytes)
         {
-            var mirrorP2PMessage = MirrorP2PMessage.LoadMessage(bytes);
+            var mirrorP2PMessage = MirrorP2PMessage.Create(bytes);
 
-            Debug.Log($"OnMessage: {mirrorP2PMessage.MessageType}");
+            Debug.Log($"OnMessage: {mirrorP2PMessage.Type}");
 
-            switch (mirrorP2PMessage.MessageType)
+            if (mirrorP2PMessage.Type == typeof(RawData))
             {
-                case MirrorP2PMessage.Type.ConnectedConfirmResponce:
-                    {
-                        if (!this.utcss.ContainsKey(mirrorP2PMessage.Uid)) return;
-                        this.utcss[mirrorP2PMessage.Uid].TrySetResult(true);
-                        break;
-                    }
-
-                case MirrorP2PMessage.Type.ConnectedConfirmRequest:
-                    {
-                        this.OnRequestHandler?.Invoke(mirrorP2PMessage);
-                        break;
-                    }
-
-                case MirrorP2PMessage.Type.RawData:
-                    {
-                        this.OnMessageHandler?.Invoke(mirrorP2PMessage);
-                        break;
-                    }
-
-                default:
-                    break;
+                this.OnMessageHandler?.Invoke(MirrorP2PMessage.Deserialize(mirrorP2PMessage.Payload) as RawData);
+            }
+            else if (mirrorP2PMessage.Type.GetInterfaces().Contains(typeof(IRequest)))
+            {
+                this.OnRequestHandler?.Invoke(mirrorP2PMessage.Type, MirrorP2PMessage.Deserialize(mirrorP2PMessage.Payload) as IRequest);
+            }
+            else if (mirrorP2PMessage.Type.GetInterfaces().Contains(typeof(IResponse)))
+            {
+                var responce = MirrorP2PMessage.Deserialize(mirrorP2PMessage.Payload) as IResponse;
+                if (!this.utcss.ContainsKey(responce.Uid)) return;
+                this.utcss[responce.Uid].TrySetResult(responce);
             }
         }
     }

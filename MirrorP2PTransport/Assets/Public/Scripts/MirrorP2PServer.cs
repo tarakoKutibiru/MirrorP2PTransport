@@ -44,7 +44,7 @@ namespace Mirror.WebRTC
         {
             if (!this.IsConnected()) return false;
 
-            this.connection.SendMessage(MirrorP2PMessage.CreateRawDataMessage(data));
+            this.connection.SendMessage(MirrorP2PMessage.Create<RawData>(new RawData(data)));
 
             return true;
         }
@@ -106,29 +106,21 @@ namespace Mirror.WebRTC
             return true;
         }
 
-        void OnMessage(MirrorP2PMessage message)
+        void OnMessage(RawData rawData)
         {
             if (this.connectionStatus != ConnectionStatus.Connected) return;
-            this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, message.rawData, MirrorP2PServer.channelId);
+            this.OnReceivedDataAction?.Invoke(MirrorP2PServer.connectionId, rawData.rawData, MirrorP2PServer.channelId);
         }
 
-        void OnRequest(MirrorP2PMessage message)
+        void OnRequest(Type type, IRequest request)
         {
-            switch (message.MessageType)
+            if (type == typeof(ConnectedConfirmRequest))
             {
-                case MirrorP2PMessage.Type.ConnectedConfirmRequest:
-                    {
-
-                        this.connection.SendResponce(MirrorP2PMessage.CreateConnectedConfirmResponce(message.Uid));
-                        UnityEngine.Debug.Log($"Server OnConnected");
-                        if (this.connectionStatus == ConnectionStatus.Connected) break;
-                        this.connectionStatus = ConnectionStatus.Connected;
-                        this.OnConnectedAction?.Invoke(MirrorP2PServer.connectionId);
-                        break;
-                    }
-
-                default:
-                    break;
+                this.connection.SendResponce(MirrorP2PMessage.Create<ConnectedConfirmResponce>(new ConnectedConfirmResponce(request as ConnectedConfirmRequest)));
+                UnityEngine.Debug.Log($"Server OnConnected");
+                if (this.connectionStatus == ConnectionStatus.Connected) return;
+                this.connectionStatus = ConnectionStatus.Connected;
+                this.OnConnectedAction?.Invoke(MirrorP2PServer.connectionId);
             }
         }
 
