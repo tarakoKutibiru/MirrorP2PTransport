@@ -78,19 +78,19 @@ namespace Mirror.WebRTC
                 return false;
             }
 
-            this.connection.SendMessage(MirrorP2PMessage.CreateRawDataMessage(data));
+            this.connection.SendMessage(MirrorP2PMessage.Create<RawData>(new RawData(data)));
 
             return true;
         }
 
-        void OnMessage(MirrorP2PMessage message)
+        void OnMessage(RawData rawData)
         {
             if (this.state == State.Stop) return;
 
-            this.OnReceivedDataAction?.Invoke(message.rawData, 0);
+            this.OnReceivedDataAction?.Invoke(rawData.rawData, 0);
         }
 
-        void OnRequest(MirrorP2PMessage message)
+        void OnRequest(Type type, IRequest request)
         {
 
         }
@@ -111,13 +111,13 @@ namespace Mirror.WebRTC
             UniTask.Void(async () =>
             {
                 this.cts = new CancellationTokenSource();
-                var result = false;
+                ConnectedConfirmResponce result = default;
 
                 try
                 {
-                    while (!result && this.state == State.Runnning)
+                    while (result == default && this.state == State.Runnning)
                     {
-                        result = await this.connection.SendRequest(MirrorP2PMessage.CreateConnectedConfirmRequest(), this.cts.Token);
+                        result = await this.connection.SendRequest(new ConnectedConfirmRequest(), this.cts.Token) as ConnectedConfirmResponce;
                     }
                 }
                 catch (OperationCanceledException ex)
@@ -129,7 +129,7 @@ namespace Mirror.WebRTC
                     this.cts = default;
                 }
 
-                if (!result) return;
+                if (result == default) return;
 
                 UnityEngine.Debug.Log($"Client OnConnected");
 
