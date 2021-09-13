@@ -53,20 +53,25 @@ namespace Mirror.WebRTC
                     UniTask.Void(async () =>
                     {
                         // 接続確認
-                        var connectedConfirmResponse = await this.Request<ConnectedConfirmRequest, ConnectedConfirmResponce>(connection, new ConnectedConfirmRequest());
+                        var connectedConfirmResponse = await this.Request<ConnectedConfirmRequest, ConnectedConfirmResponce>(this.baseConnection, new ConnectedConfirmRequest());
                         if (connectedConfirmResponse == default) return;
+                        UnityEngine.Debug.Log("###ConnectedConfirm");
 
                         // 個別のroomIdを取得
-                        var connectServerResponse = await this.Request<ConnectServerRequest, ConnectServerResponse>(connection, new ConnectServerRequest());
+                        var connectServerResponse = await this.Request<ConnectServerRequest, ConnectServerResponse>(this.baseConnection, new ConnectServerRequest());
                         if (connectServerResponse == default) return;
                         this.roomId = connectServerResponse.roomId;
-
-                        connection.Disconnect();
-                        this.baseConnection = default;
+                        UnityEngine.Debug.Log($"###connectServerResponse {this.roomId}");
 
                         // 改めて個別のroomIdでServer(Host)と接続する
                         this.Connect(this.roomId);
                     });
+                };
+                connection.OnDisconnectedHandler = () =>
+                {
+                    this.baseConnection.OnConnectedHandler = default;
+                    this.baseConnection.Disconnect();
+                    this.baseConnection = default;
                 };
                 this.baseConnection = connection;
                 this.baseConnection.Connect();

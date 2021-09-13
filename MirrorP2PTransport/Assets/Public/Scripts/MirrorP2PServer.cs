@@ -44,7 +44,19 @@ namespace Mirror.WebRTC
                 {
                     var newConnectionId = this.connectionStatus.Count + 1; // TODO: ユニーク？
                     this.baseConnection.SendResponce(MirrorP2PMessage.Create<ConnectServerResponse>(new ConnectServerResponse(request as ConnectServerRequest, this.GenerateRoomId(newConnectionId))));
+
                     this.Connect(newConnectionId);
+                }
+            };
+            baseConnection.OnDisconnectedHandler = () =>
+            {
+                if (this.state == State.Runnning)
+                {
+                    this.baseConnection.Connect();
+                }
+                else if (this.state == State.Stop)
+                {
+                    this.baseConnection = default;
                 }
             };
             this.baseConnection.Connect();
@@ -70,11 +82,6 @@ namespace Mirror.WebRTC
             return true;
         }
 
-        void Connect()
-        {
-
-        }
-
         void Connect(int connectionId)
         {
             UnityEngine.Debug.Log($"{this.GetType().Name}: {MethodBase.GetCurrentMethod().Name}");
@@ -88,7 +95,7 @@ namespace Mirror.WebRTC
             else
             {
 
-                var connection = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: roomId);
+                var connection = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: this.GenerateRoomId(connectionId));
 
                 connection.OnConnectedHandler = () => { this.OnConnected(connectionId); };
                 connection.OnDisconnectedHandler = () => { this.OnDisconnected(connectionId); };
@@ -164,7 +171,9 @@ namespace Mirror.WebRTC
 
         void OnConnected(int connectionId)
         {
-
+            if (!this.baseConnection.IsConnected()) return;
+            this.baseConnection.Disconnect();
+            this.baseConnection.Connect();
         }
 
         string GenerateRoomId(int connectionId)
@@ -182,7 +191,7 @@ namespace Mirror.WebRTC
 
             if (this.state == State.Runnning)
             {
-                this.Connect();
+                this.Connect(connectionId);
             }
             else if (this.state == State.Stop)
             {
