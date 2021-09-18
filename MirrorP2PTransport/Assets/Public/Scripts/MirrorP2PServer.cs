@@ -1,23 +1,24 @@
 ﻿using System;
 using System.Reflection;
+using Cysharp.Threading.Tasks;
 
 namespace Mirror.WebRTC
 {
     public class MirrorP2PServer : Common
     {
         static readonly int connectionId = 1;
-        static readonly int channelId = 0;
+        static readonly int channelId    = 0;
 
-        public event Action<int> OnConnectedAction; // connectionId
+        public event Action<int>              OnConnectedAction; // connectionId
         public event Action<int, byte[], int> OnReceivedDataAction; // connectionId, data, channnelId
-        public event Action<int> OnDisconnectedAction; // connectionId
-        public event Action<int, Exception> OnReceivedErrorAction; // connectionId
+        public event Action<int>              OnDisconnectedAction; // connectionId
+        public event Action<int, Exception>   OnReceivedErrorAction; // connectionId
 
         string signalingURL;
         string signalingKey;
         string roomId;
 
-        MirrorP2PConnection connection = default;
+        MirrorP2PConnection connection  = default;
         MirrorP2PConnection connectionA = default;
         MirrorP2PConnection connectionB = default;
 
@@ -29,7 +30,7 @@ namespace Mirror.WebRTC
 
             this.signalingURL = signalingURL;
             this.signalingKey = signalingKey;
-            this.roomId = roomId;
+            this.roomId       = roomId;
 
             this.Connect();
         }
@@ -59,12 +60,55 @@ namespace Mirror.WebRTC
             if (this.connection == default)
             {
                 var connectionA = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: $"{roomId}_A");
+                connectionA.OnConnectedHandler = () =>
+                {
+                    UnityEngine.Debug.Log("OnConnected");
+
+                    var connectionB = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: $"{roomId}_B");
+                    connectionB.OnConnectedHandler = () =>
+                    {
+                        UnityEngine.Debug.Log("OnConnected");
+                        UniTask.Void(async() =>
+                        {
+                            while (true)
+                            {
+                                await UniTask.Delay(TimeSpan.FromSeconds(1));
+                                var message = new AnyString("World");
+                                connectionB.SendMessage(MirrorP2PMessage.Create<AnyString>(message));
+                            }
+                        });
+                    };
+                    connectionB.OnAnyMessageHandler = (type, message) =>
+                    {
+                        if (type == typeof(AnyString))
+                        {
+                            var anyString = message as AnyString;;
+                            UnityEngine.Debug.Log(anyString.message);
+                        }
+                    };
+                    connectionB.Connect();
+                    this.connectionB = connectionB;
+
+                    UniTask.Void(async() =>
+                    {
+                        while (true)
+                        {
+                            await UniTask.Delay(TimeSpan.FromSeconds(1));
+                            var message = new AnyString("Hello");
+                            connectionA.SendMessage(MirrorP2PMessage.Create<AnyString>(message));
+                        }
+                    });
+                };
+                connectionA.OnAnyMessageHandler = (type, message) =>
+                {
+                    if (type == typeof(AnyString))
+                    {
+                        var anyString = message as AnyString;;
+                        UnityEngine.Debug.Log(anyString.message);
+                    }
+                };
                 connectionA.Connect();
                 this.connectionA = connectionA;
-
-                var connectionB = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: $"{roomId}_B");
-                connectionB.Connect();
-                this.connectionB = connection;
             }
             else
             {
@@ -74,16 +118,20 @@ namespace Mirror.WebRTC
 
         public bool Disconnect(int connectionId)
         {
-            this.connectionStatus = ConnectionStatus.Disconnected;
-
-            if (this.connection != default)
+            if (this.connectionA != default)
             {
-                this.connection.OnDisconnectedHandler -= this.OnDisconnected;
-                this.connection.OnConnectedHandler -= this.OnConnected;
-                this.connection.OnMessageHandler -= this.OnMessage;
-                this.connection.OnRequestHandler -= this.OnRequest;
-                this.connection.Disconnect();
-                this.connection = default;
+                this.connectionA.Disconnect();
+                this.connectionA.OnAnyMessageHandler = default;
+                this.connectionA.OnConnectedHandler  = default;
+                this.connectionA = default;
+            }
+
+            if (this.connectionB != default)
+            {
+                this.connectionB.Disconnect();
+                this.connectionB.OnAnyMessageHandler = default;
+                this.connectionB.OnConnectedHandler  = default;
+                this.connectionB = default;
             }
 
             return true;

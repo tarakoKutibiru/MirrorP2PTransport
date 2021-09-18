@@ -12,12 +12,14 @@ namespace Mirror.WebRTC
     {
         public delegate void OnMessageDelegate(RawData rawData);
         public delegate void OnRequestDelegate(Type type, IRequest message);
+        public delegate void OnAnyMessageDelegate(Type type, object message);
         public delegate void OnConnectedDelegate();
         public delegate void OnDisconnectedDelegate();
 
-        public OnMessageDelegate OnMessageHandler;
-        public OnRequestDelegate OnRequestHandler;
-        public OnConnectedDelegate OnConnectedHandler;
+        public OnAnyMessageDelegate   OnAnyMessageHandler;
+        public OnMessageDelegate      OnMessageHandler;
+        public OnRequestDelegate      OnRequestHandler;
+        public OnConnectedDelegate    OnConnectedHandler;
         public OnDisconnectedDelegate OnDisconnectedHandler;
 
         static readonly float interval = 5.0f;
@@ -44,7 +46,7 @@ namespace Mirror.WebRTC
         {
             this.signalingKey = signalingKey;
             this.signalingURL = signalingURL;
-            this.roomId = roomId;
+            this.roomId       = roomId;
         }
 
         public void Connect()
@@ -54,9 +56,9 @@ namespace Mirror.WebRTC
             this.state = State.Running;
 
             this.ayameConnection = new AyameConnection();
-            this.ayameConnection.OnConnectedHandler += () => { this.OnConnectedHandler?.Invoke(); };
+            this.ayameConnection.OnConnectedHandler    += () => { this.OnConnectedHandler?.Invoke(); };
             this.ayameConnection.OnDisconnectedHandler += () => { this.OnDisconnectedHandler?.Invoke(); };
-            this.ayameConnection.OnMessageHandler += this.OnMessage;
+            this.ayameConnection.OnMessageHandler      += this.OnMessage;
             this.ayameConnection.Connect(this.signalingURL, this.signalingKey, this.roomId, interval);
         }
 
@@ -106,7 +108,7 @@ namespace Mirror.WebRTC
                 var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(timeOutCT.Token, ct);
                 result = await utcs.Task.AttachExternalCancellation(linkedTokenSource.Token);
             }
-            catch (OperationCanceledException ex)
+            catch(OperationCanceledException ex)
             {
                 if (timeOutCT.IsCancellationRequested)
                 {
@@ -147,6 +149,10 @@ namespace Mirror.WebRTC
                 var responce = MirrorP2PMessage.Deserialize(mirrorP2PMessage.Payload) as IResponse;
                 if (!this.utcss.ContainsKey(responce.Uid)) return;
                 this.utcss[responce.Uid].TrySetResult(responce);
+            }
+            else
+            {
+                this.OnAnyMessageHandler?.Invoke(mirrorP2PMessage.Type, MirrorP2PMessage.Deserialize(mirrorP2PMessage.Payload));
             }
         }
     }
