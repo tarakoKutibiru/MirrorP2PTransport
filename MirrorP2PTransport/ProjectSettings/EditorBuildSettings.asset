@@ -12,7 +12,7 @@ EditorBuildSettings:
     path: Assets/Samples/Basic/Scenes/BasicScene.unity
     guid: 06423efa4ca0b3c4b95d3917b7f9651b
   - enabled: 0
-    path: Assets/Samples/Chat/Scenes/ChatScene.unity
+    path: 
     guid: 9cddcfe6c7f0bf548904fc652fb89108
   - enabled: 1
     path: Assets/Samples/Pong/Scenes/PongScene.unity
@@ -32,4 +32,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Samples/Tanks/Scenes/TanksScene.unity
     guid: 298940588f9ae614ba154a58e0cda19a
+  - enabled: 1
+    path: Assets/Samples/Benchmark/Scenes/BenchmarkScene.unity
+    guid: a65876fbb48174a4c822d6139cde2347
   m_configObjects: {}

@@ -54,6 +54,7 @@ namespace Mirror.WebRTC.Samples
             "PongScene",
             "RigidbodyPhysicsScene",
             "TanksScene",
+            "BenchmarkScene",
             };
 
             float margin = Screen.width / 100f;
