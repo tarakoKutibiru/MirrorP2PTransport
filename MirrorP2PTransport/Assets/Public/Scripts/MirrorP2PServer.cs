@@ -18,6 +18,8 @@ namespace Mirror.WebRTC
         string roomId;
 
         MirrorP2PConnection connection = default;
+        MirrorP2PConnection connectionA = default;
+        MirrorP2PConnection connectionB = default;
 
         public void Start(string signalingURL, string signalingKey, string roomId)
         {
@@ -56,16 +58,13 @@ namespace Mirror.WebRTC
 
             if (this.connection == default)
             {
-                var connection = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: roomId);
+                var connectionA = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: $"{roomId}_A");
+                connectionA.Connect();
+                this.connectionA = connectionA;
 
-                connection.OnConnectedHandler += this.OnConnected;
-                connection.OnDisconnectedHandler += this.OnDisconnected;
-                connection.OnMessageHandler += this.OnMessage;
-                connection.OnRequestHandler += this.OnRequest;
-
-                connection.Connect();
-
-                this.connection = connection;
+                var connectionB = new MirrorP2PConnection(signalingURL: signalingURL, signalingKey: signalingKey, roomId: $"{roomId}_B");
+                connectionB.Connect();
+                this.connectionB = connection;
             }
             else
             {
