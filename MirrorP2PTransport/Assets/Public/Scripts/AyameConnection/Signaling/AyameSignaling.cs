@@ -283,13 +283,13 @@ namespace Mirror.WebRTC
 
             if (data is string s)
             {
-                Debug.Log("Signaling: Sending WS data: " + s);
+                Debug.Log("Signaling: Sending WS data: " + s + "roomId: " + this.m_roomId);
                 m_webSocket.Send(s);
             }
             else
             {
                 string str = JsonUtility.ToJson(data);
-                Debug.Log("Signaling: Sending WS data: " + str);
+                Debug.Log("Signaling: Sending WS data: " + str + "roomId: " + this.m_roomId);
                 m_webSocket.Send(str);
             }
         }
