@@ -47,6 +47,14 @@ namespace Mirror.WebRTC
             this.roomId = roomId;
         }
 
+        public void ClearEvents()
+        {
+            this.OnMessageHandler = default;
+            this.OnRequestHandler = default;
+            this.OnConnectedHandler = default;
+            this.OnDisconnectedHandler = default;
+        }
+
         public void Connect()
         {
             UnityEngine.Debug.Log($"{this.GetType().Name}: {MethodBase.GetCurrentMethod().Name}");
@@ -65,9 +73,7 @@ namespace Mirror.WebRTC
             if (this.state == State.Stop) return;
             this.state = State.Stop;
             this.ayameConnection.Disconnect();
-            this.ayameConnection.OnConnectedHandler = default;
-            this.ayameConnection.OnDisconnectedHandler = default;
-            this.ayameConnection.OnMessageHandler = default;
+            this.ayameConnection.ClearEvents();
             this.ayameConnection = default;
             Debug.Log("Disconnect");
         }

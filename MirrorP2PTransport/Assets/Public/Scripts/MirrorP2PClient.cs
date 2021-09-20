@@ -95,10 +95,10 @@ namespace Mirror.WebRTC
             if (this.connection == default)
             {
                 var connection = new MirrorP2PConnection(signalingURL: this.signalingURL, signalingKey: this.signalingKey, roomId: roomId);
-                connection.OnConnectedHandler += this.OnConnected;
-                connection.OnDisconnectedHandler += this.OnDisconnected;
-                connection.OnMessageHandler += this.OnMessage;
-                connection.OnRequestHandler += this.OnRequest;
+                connection.OnConnectedHandler = this.OnConnected;
+                connection.OnDisconnectedHandler = this.OnDisconnected;
+                connection.OnMessageHandler = this.OnMessage;
+                connection.OnRequestHandler = this.OnRequest;
                 connection.Connect();
                 this.connection = connection;
             }
@@ -112,11 +112,25 @@ namespace Mirror.WebRTC
 
         void Disconnect()
         {
-            if (this.connection == default) return;
-
             this.cts?.Cancel();
+
+            if (this.baseConnection != default)
+            {
+                this.baseConnection.Disconnect();
+                this.baseConnection.ClearEvents();
+                this.baseConnection = default;
+            }
+
             this.connectionStatus = ConnectionStatus.Disconnecting;
-            this.connection.Disconnect();
+
+            if (this.connection != default)
+            {
+                this.connection.Disconnect();
+                this.connection.ClearEvents();
+                this.connection = default;
+            }
+
+            this.roomId = string.Empty;
         }
 
         public bool Send(byte[] data)

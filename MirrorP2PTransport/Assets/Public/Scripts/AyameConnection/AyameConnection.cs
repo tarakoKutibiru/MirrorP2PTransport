@@ -24,6 +24,13 @@
             this.impl.OnDisconnectedHandler += this.OnDisconnected;
         }
 
+        public void ClearEvents()
+        {
+            this.OnMessageHandler = default;
+            this.OnConnectedHandler = default;
+            this.OnDisconnectedHandler = default;
+        }
+
         public void Connect(string signalingURL, string signalingKey, string roomId, float timeOut)
         {
             var dataChannelSettings = new AyameConnectionImplConstants.DataChannelSetting[] { DataChannelSetting };
