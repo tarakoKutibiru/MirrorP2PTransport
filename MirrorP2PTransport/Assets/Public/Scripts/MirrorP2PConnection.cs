@@ -54,9 +54,9 @@ namespace Mirror.WebRTC
             this.state = State.Running;
 
             this.ayameConnection = new AyameConnection();
-            this.ayameConnection.OnConnectedHandler += () => { this.OnConnectedHandler?.Invoke(); };
-            this.ayameConnection.OnDisconnectedHandler += () => { this.OnDisconnectedHandler?.Invoke(); };
-            this.ayameConnection.OnMessageHandler += this.OnMessage;
+            this.ayameConnection.OnConnectedHandler = () => { this.OnConnectedHandler?.Invoke(); };
+            this.ayameConnection.OnDisconnectedHandler = () => { this.OnDisconnectedHandler?.Invoke(); };
+            this.ayameConnection.OnMessageHandler = this.OnMessage;
             this.ayameConnection.Connect(this.signalingURL, this.signalingKey, this.roomId, interval);
         }
 
@@ -65,6 +65,9 @@ namespace Mirror.WebRTC
             if (this.state == State.Stop) return;
             this.state = State.Stop;
             this.ayameConnection.Disconnect();
+            this.ayameConnection.OnConnectedHandler = default;
+            this.ayameConnection.OnDisconnectedHandler = default;
+            this.ayameConnection.OnMessageHandler = default;
             this.ayameConnection = default;
             Debug.Log("Disconnect");
         }
