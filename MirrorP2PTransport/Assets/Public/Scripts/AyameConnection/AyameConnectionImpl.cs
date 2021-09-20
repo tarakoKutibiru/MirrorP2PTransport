@@ -33,7 +33,14 @@ namespace Mirror.WebRTC
             this.signaling.OnIceCandidate += OnIceCandidate;
 
             this.rtcConfiguration = new RTCConfiguration();
-            this.rtcConfiguration.iceServers = new[] { new RTCIceServer { urls = new[] { "stun:stun.l.google.com:19302" } } };
+            var urls = new string[]
+            {
+                "stun:stun.l.google.com:19302",
+                "stun:stun1.l.google.com:19302",
+                "stun:stun2.l.google.com:19302",
+                "stun:stun3.l.google.com:19302"
+            };
+            this.rtcConfiguration.iceServers = new[] { new RTCIceServer { urls = urls } };
 
             this.signaling.Start();
         }
