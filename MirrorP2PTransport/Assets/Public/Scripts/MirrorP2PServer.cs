@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace Mirror.WebRTC
 {
-    public class MirrorP2PServer : Common
+    public class MirrorP2PServer : Common, IDisposable
     {
         static readonly int channelId = 0;
 
@@ -22,6 +22,20 @@ namespace Mirror.WebRTC
 
         Dictionary<int, MirrorP2PConnection> connections = new Dictionary<int, MirrorP2PConnection>();
         Dictionary<int, ConnectionStatus> connectionStatus = new Dictionary<int, ConnectionStatus>();
+
+        public void Dispose()
+        {
+            this.OnConnectedAction = default;
+            this.OnReceivedDataAction = default;
+            this.OnDisconnectedAction = default;
+            this.OnReceivedErrorAction = default;
+
+            this.baseConnection?.Dispose();
+            this.baseConnection = default;
+
+            foreach (var connection in this.connections) connection.Value.Dispose();
+            this.connections = default;
+        }
 
         public void Start(string signalingURL, string signalingKey, string roomId)
         {

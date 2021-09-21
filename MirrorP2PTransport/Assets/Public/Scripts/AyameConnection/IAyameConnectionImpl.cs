@@ -1,7 +1,8 @@
-﻿
+﻿using System;
+
 namespace Mirror.WebRTC
 {
-    interface IAyameConnectionImpl
+    interface IAyameConnectionImpl<T> where T : IDisposable
     {
         AyameConnectionImplConstants.OnMessageDelegate OnMessageHandler { get; set; }
         AyameConnectionImplConstants.OnConnectedDelegate OnConnectedHandler { get; set; }

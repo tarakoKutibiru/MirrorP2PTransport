@@ -10,7 +10,7 @@ using WebSocketSharp;
 
 namespace Mirror.WebRTC
 {
-    public class AyameSignaling : ISignaling
+    public class AyameSignaling : ISignaling, IDisposable
     {
         public delegate void OnAcceptHandler(AyameSignaling signaling);
 

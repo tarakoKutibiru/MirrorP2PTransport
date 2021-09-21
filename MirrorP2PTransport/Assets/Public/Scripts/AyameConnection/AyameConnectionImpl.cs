@@ -8,7 +8,7 @@ using Cysharp.Threading.Tasks;
 
 namespace Mirror.WebRTC
 {
-    public class AyameConnectionImpl : IAyameConnectionImpl
+    public class AyameConnectionImpl : IAyameConnectionImpl<AyameConnectionImpl>, System.IDisposable
     {
         public AyameConnectionImplConstants.OnMessageDelegate OnMessageHandler { get; set; }
         public AyameConnectionImplConstants.OnConnectedDelegate OnConnectedHandler { get; set; }
@@ -20,6 +20,15 @@ namespace Mirror.WebRTC
         RTCConfiguration rtcConfiguration = default;
         RTCPeerConnection peerConnection = default;
         List<RTCDataChannel> dataChannels = default;
+
+        public void Dispose()
+        {
+            this.OnMessageHandler = default;
+            this.OnConnectedHandler = default;
+            this.OnDisconnectedHandler = default;
+
+            this.signaling?.Dispose();
+        }
 
         public void Connect(AyameConnectionImplConstants.ConnectSetting setting)
         {

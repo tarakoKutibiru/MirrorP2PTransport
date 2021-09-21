@@ -87,6 +87,12 @@ namespace Mirror.WebRTC
 #if !UNITY_WEBGL
             Unity.WebRTC.WebRTC.Dispose();
 #endif
+
+            this.client?.Dispose();
+            this.client = default;
+
+            this.server?.Dispose();
+            this.server = default;
         }
 
         public override void Shutdown()

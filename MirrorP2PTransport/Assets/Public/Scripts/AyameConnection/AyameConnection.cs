@@ -1,6 +1,8 @@
-﻿namespace Mirror.WebRTC
+﻿using System;
+
+namespace Mirror.WebRTC
 {
-    public class AyameConnection
+    public class AyameConnection : IDisposable
     {
         public delegate void OnMessageDelegate(byte[] rawData);
         public delegate void OnConnectedDelegate();
@@ -9,7 +11,7 @@
 #if UNITY_WEBGL
         IAyameConnectionImpl impl = new AyameConnectionWebGLImpl();
 #else
-        IAyameConnectionImpl impl = new AyameConnectionImpl();
+        IAyameConnectionImpl<AyameConnectionImpl> impl = new AyameConnectionImpl();
 #endif
         public OnMessageDelegate OnMessageHandler;
         public OnConnectedDelegate OnConnectedHandler;
@@ -22,6 +24,12 @@
             this.impl.OnConnectedHandler += this.OnConnected;
             this.impl.OnMessageHandler += this.OnMessage;
             this.impl.OnDisconnectedHandler += this.OnDisconnected;
+        }
+
+        public void Dispose()
+        {
+            this.ClearEvents();
+            (this.impl as IDisposable).Dispose();
         }
 
         public void ClearEvents()

@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Mirror.WebRTC
 {
-    public class MirrorP2PConnection
+    public class MirrorP2PConnection : IDisposable
     {
         public delegate void OnMessageDelegate(RawData rawData);
         public delegate void OnRequestDelegate(Type type, IRequest message);
@@ -45,6 +45,14 @@ namespace Mirror.WebRTC
             this.signalingKey = signalingKey;
             this.signalingURL = signalingURL;
             this.roomId = roomId;
+        }
+
+        public void Dispose()
+        {
+            this.ClearEvents();
+            foreach (var utcs in this.utcss) utcs.Value.TrySetCanceled();
+            this.ayameConnection?.Dispose();
+            this.ayameConnection = default;
         }
 
         public void ClearEvents()

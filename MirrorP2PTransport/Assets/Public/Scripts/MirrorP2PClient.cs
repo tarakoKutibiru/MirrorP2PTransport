@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace Mirror.WebRTC
 {
-    public class MirrorP2PClient : Common
+    public class MirrorP2PClient : Common, IDisposable
     {
         public event Action<Exception> OnReceivedErrorAction;
         public event Action<byte[], int> OnReceivedDataAction;
@@ -27,6 +27,22 @@ namespace Mirror.WebRTC
         {
             this.signalingURL = signalingURL;
             this.signalingKey = signalingKey;
+        }
+
+        public void Dispose()
+        {
+            this.OnReceivedDataAction = default;
+            this.OnReceivedDataAction = default;
+            this.OnConnectedAction = default;
+            this.OnDisconnectedAction = default;
+
+            this.cts?.Cancel();
+
+            this.baseConnection?.Dispose();
+            this.baseConnection = default;
+
+            this.connection?.Dispose();
+            this.connection = default;
         }
 
         public void Run()
